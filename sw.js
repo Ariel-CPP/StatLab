@@ -2,7 +2,7 @@
 // StatLab Service Worker for Offline PWA Execution
 // Strictly uses relative paths for GitHub Pages subpath compatibility.
 
-const CACHE_NAME = "statlab-cache-v1";
+const CACHE_NAME = "statlab-cache-v3";
 
 const ASSETS_TO_CACHE = [
   "./",
@@ -28,6 +28,7 @@ const ASSETS_TO_CACHE = [
   "./R/05_conclusions.R",
   "./R/06_anova.R",
   "./R/07_ttest.R",
+  "./R/08_regression_chisq.R",
   "./R/99_dispatcher.R",
   "./vendor/katex/katex.min.css",
   "./vendor/katex/katex.min.js",
@@ -72,8 +73,8 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
 
-  // Cache-first for webR wasm/data and vendor scripts
-  if (url.pathname.includes("/vendor/") || url.pathname.includes("/R/")) {
+  // Cache-first ONLY for heavy binary wasm/so files
+  if (url.pathname.endsWith(".wasm") || url.pathname.endsWith(".so")) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         return cached || fetch(event.request).then((response) => {
@@ -88,7 +89,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first with cache fallback for app assets
+  // Network-first with cache fallback for all scripts and R modules
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

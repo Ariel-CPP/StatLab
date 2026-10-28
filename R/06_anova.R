@@ -1009,3 +1009,221 @@ sl_analyze_anova <- function(df, opts = list()) {
     )
   )
 }
+
+
+#' Complete Two-Way Factorial Analysis of Variance (ANOVA) Engine
+#'
+#' @param df Rectangular data.frame or named list of columns
+#' @param opts Configuration options
+#' @return Named list matching StatLab dispatch contract
+sl_analyze_twoway_anova <- function(df, opts = list()) {
+  alpha <- if (!is.null(opts$alpha) && is.numeric(opts$alpha) && length(opts$alpha) > 0L) {
+    as.double(opts$alpha[[1L]])
+  } else {
+    0.05
+  }
+  if (!is.finite(alpha) || alpha <= 0 || alpha >= 1) alpha <- 0.05
+
+  include_plots <- if (!is.null(opts$include_plots)) isTRUE(opts$include_plots) else TRUE
+  plot_lang <- if (!is.null(opts$lang) && opts$lang %in% c("id", "en")) opts$lang else "id"
+
+  cols <- names(df)
+  num_mask <- vapply(df, function(c) {
+    v <- suppressWarnings(as.numeric(as.character(c)))
+    sum(is.finite(v)) >= length(v) / 2
+  }, logical(1L))
+
+  num_cols <- cols[num_mask]
+  txt_cols <- cols[!num_mask]
+
+  resp_col <- if (length(num_cols) > 0L) num_cols[length(num_cols)] else cols[length(cols)]
+  fact_cols <- cols[cols != resp_col]
+  if (length(fact_cols) < 2L) {
+    stop("ANOVA Dua Arah (Faktorial) membutuhkan minimal 2 kolom faktor dan 1 kolom respon numerik.")
+  }
+
+  col_fact_a <- fact_cols[1L]
+  col_fact_b <- fact_cols[2L]
+
+  raw_a <- as.character(df[[col_fact_a]])
+  raw_b <- as.character(df[[col_fact_b]])
+  raw_y <- suppressWarnings(as.numeric(as.character(df[[resp_col]])))
+
+  valid_idx <- which(nzchar(raw_a) & nzchar(raw_b) & is.finite(raw_y))
+  if (length(valid_idx) < 4L) {
+    stop("ANOVA Dua Arah membutuhkan minimal 4 baris data pengamatan yang valid.")
+  }
+
+  fact_a <- factor(raw_a[valid_idx])
+  fact_b <- factor(raw_b[valid_idx])
+  y_val  <- raw_y[valid_idx]
+
+  n_obs <- length(y_val)
+  df_mod <- data.frame(A = fact_a, B = fact_b, Y = y_val)
+  fit_2way <- stats::aov(Y ~ A * B, data = df_mod)
+  sum_2way <- summary(fit_2way)[[1L]]
+
+  resids <- stats::residuals(fit_2way)
+  sw_res <- sl_shapiro_test(resids)
+  lillie_res <- sl_lilliefors_test(resids)
+  lev_res <- sl_levene_test(y_val, interaction(fact_a, fact_b), center = "median")
+
+  df_a <- as.integer(sum_2way[["Df"]][1L])
+  ss_a <- as.double(sum_2way[["Sum Sq"]][1L])
+  ms_a <- as.double(sum_2way[["Mean Sq"]][1L])
+  f_a  <- if ("F value" %in% names(sum_2way) && length(sum_2way[["F value"]]) >= 1L) as.double(sum_2way[["F value"]][1L]) else NA_real_
+  p_a  <- if ("Pr(>F)" %in% names(sum_2way) && length(sum_2way[["Pr(>F)"]]) >= 1L) as.double(sum_2way[["Pr(>F)"]][1L]) else NA_real_
+
+  df_b <- as.integer(sum_2way[["Df"]][2L])
+  ss_b <- as.double(sum_2way[["Sum Sq"]][2L])
+  ms_b <- as.double(sum_2way[["Mean Sq"]][2L])
+  f_b  <- if ("F value" %in% names(sum_2way) && length(sum_2way[["F value"]]) >= 2L) as.double(sum_2way[["F value"]][2L]) else NA_real_
+  p_b  <- if ("Pr(>F)" %in% names(sum_2way) && length(sum_2way[["Pr(>F)"]]) >= 2L) as.double(sum_2way[["Pr(>F)"]][2L]) else NA_real_
+
+  df_ab <- as.integer(sum_2way[["Df"]][3L])
+  ss_ab <- as.double(sum_2way[["Sum Sq"]][3L])
+  ms_ab <- as.double(sum_2way[["Mean Sq"]][3L])
+  f_ab  <- if ("F value" %in% names(sum_2way) && length(sum_2way[["F value"]]) >= 3L) as.double(sum_2way[["F value"]][3L]) else NA_real_
+  p_ab  <- if ("Pr(>F)" %in% names(sum_2way) && length(sum_2way[["Pr(>F)"]]) >= 3L) as.double(sum_2way[["Pr(>F)"]][3L]) else NA_real_
+
+  df_err <- if (nrow(sum_2way) >= 4L) as.integer(sum_2way[["Df"]][4L]) else 0L
+  ss_err <- if (nrow(sum_2way) >= 4L) as.double(sum_2way[["Sum Sq"]][4L]) else 0.0
+  ms_err <- if (nrow(sum_2way) >= 4L) as.double(sum_2way[["Mean Sq"]][4L]) else 0.0
+
+  df_tot <- df_a + df_b + df_ab + df_err
+  ss_tot <- ss_a + ss_b + ss_ab + ss_err
+
+  fcrit_a_05 <- if (df_err > 0L) stats::qf(0.95, df_a, df_err) else NA_real_
+  fcrit_a_01 <- if (df_err > 0L) stats::qf(0.99, df_a, df_err) else NA_real_
+  fcrit_b_05 <- if (df_err > 0L) stats::qf(0.95, df_b, df_err) else NA_real_
+  fcrit_b_01 <- if (df_err > 0L) stats::qf(0.99, df_b, df_err) else NA_real_
+  fcrit_ab_05 <- if (df_err > 0L) stats::qf(0.95, df_ab, df_err) else NA_real_
+  fcrit_ab_01 <- if (df_err > 0L) stats::qf(0.99, df_ab, df_err) else NA_real_
+
+  sig_a <- if (is.finite(p_a) && p_a < 0.01) "**" else if (is.finite(p_a) && p_a < 0.05) "*" else "tn"
+  sig_b <- if (is.finite(p_b) && p_b < 0.01) "**" else if (is.finite(p_b) && p_b < 0.05) "*" else "tn"
+  sig_ab <- if (is.finite(p_ab) && p_ab < 0.01) "**" else if (is.finite(p_ab) && p_ab < 0.05) "*" else "tn"
+
+  hdr_id <- sl_box_vec(c("Sumber Keragaman", "db", "Jumlah Kuadrat (JK)", "Kuadrat Tengah (KT)", "F-Hitung", "P-Value", "F-Tabel 5%", "F-Tabel 1%", "Keterangan"))
+  hdr_en <- sl_box_vec(c("Source of Variation", "df", "Sum of Squares (SS)", "Mean Square (MS)", "F-Statistic", "p-value", "F-Critical (0.05)", "F-Critical (0.01)", "Significance"))
+
+  r_a_id <- sl_box_vec(c(sprintf("Faktor A (%s)", col_fact_a), as.character(df_a), sl_fmt_num(ss_a, 4L, "id"), sl_fmt_num(ms_a, 4L, "id"), sl_fmt_num(f_a, 4L, "id"), sl_fmt_p(p_a, "id"), sl_fmt_num(fcrit_a_05, 4L, "id"), sl_fmt_num(fcrit_a_01, 4L, "id"), sig_a))
+  r_b_id <- sl_box_vec(c(sprintf("Faktor B (%s)", col_fact_b), as.character(df_b), sl_fmt_num(ss_b, 4L, "id"), sl_fmt_num(ms_b, 4L, "id"), sl_fmt_num(f_b, 4L, "id"), sl_fmt_p(p_b, "id"), sl_fmt_num(fcrit_b_05, 4L, "id"), sl_fmt_num(fcrit_b_01, 4L, "id"), sig_b))
+  r_ab_id <- sl_box_vec(c(sprintf("Interaksi (%s × %s)", col_fact_a, col_fact_b), as.character(df_ab), sl_fmt_num(ss_ab, 4L, "id"), sl_fmt_num(ms_ab, 4L, "id"), sl_fmt_num(f_ab, 4L, "id"), sl_fmt_p(p_ab, "id"), sl_fmt_num(fcrit_ab_05, 4L, "id"), sl_fmt_num(fcrit_ab_01, 4L, "id"), sig_ab))
+  r_err_id <- sl_box_vec(c("Galat (Error)", as.character(df_err), sl_fmt_num(ss_err, 4L, "id"), sl_fmt_num(ms_err, 4L, "id"), "\u2014", "\u2014", "\u2014", "\u2014", "\u2014"))
+  r_tot_id <- sl_box_vec(c("Total", as.character(df_tot), sl_fmt_num(ss_tot, 4L, "id"), "\u2014", "\u2014", "\u2014", "\u2014", "\u2014", "\u2014"))
+
+  r_a_en <- sl_box_vec(c(sprintf("Factor A (%s)", col_fact_a), as.character(df_a), sl_fmt_num(ss_a, 4L, "en"), sl_fmt_num(ms_a, 4L, "en"), sl_fmt_num(f_a, 4L, "en"), sl_fmt_p(p_a, "en"), sl_fmt_num(fcrit_a_05, 4L, "en"), sl_fmt_num(fcrit_a_01, 4L, "en"), if (sig_a == "tn") "ns" else sig_a))
+  r_b_en <- sl_box_vec(c(sprintf("Factor B (%s)", col_fact_b), as.character(df_b), sl_fmt_num(ss_b, 4L, "en"), sl_fmt_num(ms_b, 4L, "en"), sl_fmt_num(f_b, 4L, "en"), sl_fmt_p(p_b, "en"), sl_fmt_num(fcrit_b_05, 4L, "en"), sl_fmt_num(fcrit_b_01, 4L, "en"), if (sig_b == "tn") "ns" else sig_b))
+  r_ab_en <- sl_box_vec(c(sprintf("Interaction (%s × %s)", col_fact_a, col_fact_b), as.character(df_ab), sl_fmt_num(ss_ab, 4L, "en"), sl_fmt_num(ms_ab, 4L, "en"), sl_fmt_num(f_ab, 4L, "en"), sl_fmt_p(p_ab, "en"), sl_fmt_num(fcrit_ab_05, 4L, "en"), sl_fmt_num(fcrit_ab_01, 4L, "en"), if (sig_ab == "tn") "ns" else sig_ab))
+  r_err_en <- sl_box_vec(c("Residuals (Error)", as.character(df_err), sl_fmt_num(ss_err, 4L, "en"), sl_fmt_num(ms_err, 4L, "en"), "\u2014", "\u2014", "\u2014", "\u2014", "\u2014"))
+  r_tot_en <- sl_box_vec(c("Total", as.character(df_tot), sl_fmt_num(ss_tot, 4L, "en"), "\u2014", "\u2014", "\u2014", "\u2014", "\u2014", "\u2014"))
+
+  tbl_anova <- list(
+    id = "twoway_anova_summary",
+    title = list(
+      id = sprintf("Tabel 1. Ringkasan Sidik Ragam (ANOVA Dua Arah Faktorial: %s × %s)", col_fact_a, col_fact_b),
+      en = sprintf("Table 1. Two-Way Factorial ANOVA Summary (%s × %s)", col_fact_a, col_fact_b)
+    ),
+    headers = list(id = hdr_id, en = hdr_en),
+    rows = list(
+      id = list(r_a_id, r_b_id, r_ab_id, r_err_id, r_tot_id),
+      en = list(r_a_en, r_b_en, r_ab_en, r_err_en, r_tot_en)
+    ),
+    note = list(
+      id = "Keterangan: ** = Sangat Berbeda Nyata (p < 0,01); * = Berbeda Nyata (p < 0,05); tn = Tidak Nyata (p >= 0,05).",
+      en = "Note: ** = Highly Significant (p < 0.01); * = Significant (p < 0.05); ns = Non-Significant (p >= 0.05)."
+    )
+  )
+
+  comb_hdr_id <- sl_box_vec(c(col_fact_a, col_fact_b, "Ulangan (N)", "Rataan ± SD", "Rataan ± SE"))
+  comb_hdr_en <- sl_box_vec(c(col_fact_a, col_fact_b, "Replicates (N)", "Mean ± SD", "Mean ± SE"))
+
+  comb_rows_id <- list()
+  comb_rows_en <- list()
+  row_cnt <- 1L
+
+  for (la in levels(fact_a)) {
+    for (lb in levels(fact_b)) {
+      sub_idx <- which(fact_a == la & fact_b == lb)
+      if (length(sub_idx) > 0L) {
+        sub_y <- y_val[sub_idx]
+        m <- mean(sub_y)
+        sd_v <- if (length(sub_y) >= 2L) stats::sd(sub_y) else 0.0
+        se_v <- if (length(sub_y) >= 1L) sd_v / sqrt(length(sub_y)) else 0.0
+
+        comb_rows_id[[row_cnt]] <- sl_box_vec(c(la, lb, as.character(length(sub_y)), sprintf("%s ± %s", sl_fmt_num(m, 2L, "id"), sl_fmt_num(sd_v, 2L, "id")), sprintf("%s ± %s", sl_fmt_num(m, 2L, "id"), sl_fmt_num(se_v, 2L, "id"))))
+        comb_rows_en[[row_cnt]] <- sl_box_vec(c(la, lb, as.character(length(sub_y)), sprintf("%s ± %s", sl_fmt_num(m, 2L, "en"), sl_fmt_num(sd_v, 2L, "en")), sprintf("%s ± %s", sl_fmt_num(m, 2L, "en"), sl_fmt_num(se_v, 2L, "en"))))
+        row_cnt <- row_cnt + 1L
+      }
+    }
+  }
+
+  tbl_comb <- list(
+    id = "treatment_combinations",
+    title = list(
+      id = sprintf("Tabel 2. Rataan Kombinasi Perlakuan (%s × %s)", col_fact_a, col_fact_b),
+      en = sprintf("Table 2. Treatment Combination Means (%s × %s)", col_fact_a, col_fact_b)
+    ),
+    headers = list(id = comb_hdr_id, en = comb_hdr_en),
+    rows = list(id = comb_rows_id, en = comb_rows_en),
+    note = list(id = "Nilai rataan dan sebaran setiap kombinasi perlakuan.", en = "Mean and dispersion for each treatment combination.")
+  )
+
+  interp_id <- sprintf(
+    "Hasil analisis ragam faktorial menunjukkan: (1) Pengaruh faktor %s adalah %s (F(%d, %d) = %s, p = %s); (2) Pengaruh faktor %s adalah %s (F(%d, %d) = %s, p = %s); (3) Pengaruh interaksi (%s × %s) adalah %s (F(%d, %d) = %s, p = %s).",
+    col_fact_a, if (p_a < 0.05) "signifikan" else "tidak signifikan", df_a, df_err, sl_fmt_num(f_a, 3L, "id"), sl_fmt_p(p_a, "id"),
+    col_fact_b, if (p_b < 0.05) "signifikan" else "tidak signifikan", df_b, df_err, sl_fmt_num(f_b, 3L, "id"), sl_fmt_p(p_b, "id"),
+    col_fact_a, col_fact_b, if (p_ab < 0.05) "signifikan nyata" else "tidak signifikan", df_ab, df_err, sl_fmt_num(f_ab, 3L, "id"), sl_fmt_p(p_ab, "id")
+  )
+
+  interp_en <- sprintf(
+    "Factorial ANOVA indicated: (1) Main effect of %s is %s (F(%d, %d) = %s, p = %s); (2) Main effect of %s is %s (F(%d, %d) = %s, p = %s); (3) Interaction (%s × %s) is %s (F(%d, %d) = %s, p = %s).",
+    col_fact_a, if (p_a < 0.05) "significant" else "non-significant", df_a, df_err, sl_fmt_num(f_a, 3L, "en"), sl_fmt_p(p_a, "en"),
+    col_fact_b, if (p_b < 0.05) "significant" else "non-significant", df_b, df_err, sl_fmt_num(f_b, 3L, "en"), sl_fmt_p(p_b, "en"),
+    col_fact_a, col_fact_b, if (p_ab < 0.05) "statistically significant" else "non-significant", df_ab, df_err, sl_fmt_num(f_ab, 3L, "en"), sl_fmt_p(p_ab, "en")
+  )
+
+  meta <- list(
+    analysis_type = "twoway_anova",
+    analysis_label = list(id = "ANOVA Dua Arah (Faktorial)", en = "Two-Way Factorial ANOVA"),
+    response_label = resp_col,
+    mode = "long",
+    alpha = alpha,
+    n_raw = as.integer(n_obs),
+    n_valid = as.integer(n_obs),
+    n_missing = as.integer(0L),
+    n_excluded_outliers = as.integer(0L),
+    excluded_rows = sl_box_vec(integer(0)),
+    group_names = sl_box_vec(levels(interaction(fact_a, fact_b))),
+    r_version = paste0(R.version$major, ".", R.version$minor),
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  )
+
+  list(
+    meta = meta,
+    assumptions = list(
+      normality_violated = isTRUE(sw_res$valid && sw_res$p_value < alpha),
+      homogeneity_violated = isTRUE(lev_res$valid && lev_res$p_value < alpha)
+    ),
+    outliers = list(flagged = data.frame()),
+    main = list(
+      factor_a = list(name = col_fact_a, df = df_a, ss = ss_a, ms = ms_a, f = f_a, p = p_a),
+      factor_b = list(name = col_fact_b, df = df_b, ss = ss_b, ms = ms_b, f = f_b, p = p_b),
+      interaction = list(df = df_ab, ss = ss_ab, ms = ms_ab, f = f_ab, p = p_ab),
+      error = list(df = df_err, ss = ss_err, ms = ms_err)
+    ),
+    posthoc = NULL,
+    tables_apa = list(tbl_anova, tbl_comb),
+    tables_full = list(),
+    formulas = list(
+      list(
+        title = list(id = "Model ANOVA Dua Arah", en = "Two-Way ANOVA Model"),
+        latex = "Y_{ijk} = \\mu + \\alpha_i + \\beta_j + (\\alpha\\beta)_{ij} + \\epsilon_{ijk}"
+      )
+    ),
+    plots = list(),
+    interpretation = list(id = interp_id, en = interp_en),
+    warnings = list(id = sl_box_vec(character(0)), en = sl_box_vec(character(0)))
+  )
+}

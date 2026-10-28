@@ -207,7 +207,7 @@ export const ANALYSIS_TEMPLATES = {
       ["Tinggi", "30_ppt", "3.8"]
     ],
     roles: { mode: "long", response_cols: ["Laju_Pertumbuhan"], group_col: "Suhu" },
-    analysisType: "descriptive"
+    analysisType: "twoway_anova"
   },
   regression: {
     id: "regression",
@@ -227,7 +227,7 @@ export const ANALYSIS_TEMPLATES = {
       ["40", "52.0"]
     ],
     roles: { mode: "wide", response_cols: ["Salinitas_ppt", "Sintasan_Persen"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "regression"
   },
   chisquare_indep: {
     id: "chisquare_indep",
@@ -241,7 +241,7 @@ export const ANALYSIS_TEMPLATES = {
       ["5", "15", "8"]
     ],
     roles: { mode: "wide", response_cols: ["Kolam_A", "Kolam_B", "Kolam_C"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "chisquare_indep"
   },
   repeated_measures: {
     id: "repeated_measures",

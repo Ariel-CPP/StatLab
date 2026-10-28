@@ -143,6 +143,7 @@ export class StatLabEngine {
       "05_conclusions.R",
       "06_anova.R",
       "07_ttest.R",
+      "08_regression_chisq.R",
       "99_dispatcher.R"
     ];
 
