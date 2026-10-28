@@ -209,6 +209,33 @@ export const ANALYSIS_TEMPLATES = {
     roles: { mode: "long", response_cols: ["Laju_Pertumbuhan"], group_col: "Suhu" },
     analysisType: "twoway_anova"
   },
+  curve_estimation: {
+    id: "curve_estimation",
+    name: "Regresi & Estimasi Kurva (Panjang vs Bobot Alometrik W = a*L^b)",
+    category: "Regresi, Korelasi & Asosiasi",
+    formatMode: "Format Pasangan Numerik (Kolom 1: X Bebas, Kolom 2: Y Respon)",
+    shortDesc: "Mencocokkan 5 model kurva sekaligus (Linier, Kuadratik, Power/Alometrik, Eksponensial, Logaritmik) dan merekomendasikan model terbaik (R² & AIC). Dilengkapi uji alometrik b=3 dan titik optimum kuadratik.",
+    headers: ["Panjang_cm", "Bobot_g"],
+    rows: [
+      ["8.5", "8.2"],
+      ["9.2", "10.5"],
+      ["10.0", "13.6"],
+      ["10.8", "17.2"],
+      ["11.5", "20.8"],
+      ["12.2", "25.1"],
+      ["13.0", "30.4"],
+      ["13.7", "35.8"],
+      ["14.5", "42.5"],
+      ["15.2", "49.0"],
+      ["16.0", "57.2"],
+      ["16.8", "66.5"],
+      ["17.5", "75.4"],
+      ["18.2", "85.0"],
+      ["19.0", "96.8"]
+    ],
+    roles: { mode: "wide", response_cols: ["Panjang_cm", "Bobot_g"], group_col: null },
+    analysisType: "curve_estimation"
+  },
   regression: {
     id: "regression",
     name: "Regresi Linear & Korelasi (Salinitas vs Sintasan)",
@@ -407,8 +434,9 @@ export async function mountStatLab(rootEl, config = {}) {
                     <option value="twoway_anova">ANOVA Dua Arah (Faktorial)</option>
                     <option value="repeated_measures">Repeated Measures ANOVA</option>
                   </optgroup>
-                  <optgroup label="Regresi, Korelasi &amp; Asosiasi">
-                    <option value="regression">Regresi Linear &amp; Korelasi</option>
+                  <optgroup label="Regresi &amp; Kurva Non-Linier">
+                    <option value="curve_estimation">Regresi &amp; Estimasi Kurva (Linier, Kuadratik, Power, Eksponensial, Logaritmik)</option>
+                    <option value="regression">Regresi Linear Sederhana &amp; Korelasi</option>
                     <option value="chisquare_indep">Uji Chi-Square Independensi</option>
                   </optgroup>
                   <optgroup label="Multivariat &amp; Survival (Roadmap Phase 3)">
@@ -416,6 +444,19 @@ export async function mountStatLab(rootEl, config = {}) {
                     <option value="kaplan_meier">Survival Analysis (Kaplan-Meier)</option>
                     <option value="pca_hca">PCA, HCA &amp; Clustering</option>
                   </optgroup>
+                </select>
+              </div>
+
+              <!-- Curve Sub-Model Target Selector -->
+              <div class="sl-form-group" id="sl-curve-model-group" style="display:none;margin-top:8px;">
+                <label for="sl-curve-model-select" style="font-size:12px;font-weight:600;color:var(--sl-ink);margin-bottom:4px;display:block;">Model Kurva Ditargetkan:</label>
+                <select class="sl-select" id="sl-curve-model-select" style="width:100%;font-size:12px;padding:5px 8px;">
+                  <option value="all" selected>★ Evaluasi Semua Kurva &amp; Rekomendasikan Terbaik</option>
+                  <option value="linear">Linier (Y = a + bX)</option>
+                  <option value="quadratic">Polinomial Kuadratik (Titik Optimum Y = a + bX + cX²)</option>
+                  <option value="power">Power / Alometrik Panjang-Bobot (W = a*L^b)</option>
+                  <option value="exponential">Eksponensial (Y = a*e^(bX))</option>
+                  <option value="logarithmic">Logaritmik (Y = a + b*ln(X))</option>
                 </select>
               </div>
 
@@ -662,6 +703,14 @@ export async function mountStatLab(rootEl, config = {}) {
           </table>
         </div>
 
+        ${key === "curve_estimation" ? `
+          <div style="margin: 6px 0 8px 0;">
+            <button type="button" class="sl-btn sl-btn-sm" id="sl-btn-load-quad-feed" style="width:100%;font-size:11px;background:#F0F4F8;color:#1B365D;border:1px solid #CBD5E1;text-align:left;padding:6px 8px;" title="Muat contoh alternatif: Dosis Protein Pakan vs Pertumbuhan (Kurva Kuadratik & Titik Optimum)">
+              <span>💡</span> <strong>Alternatif:</strong> Dosis Pakan vs Pertumbuhan (Kuadratik)
+            </button>
+          </div>
+        ` : ""}
+
         <div style="display:flex;flex-direction:column;gap:6px;">
           <button type="button" class="sl-btn sl-btn-sm sl-btn-aqua" id="sl-btn-copy-template" title="Salin teks CSV contoh ke clipboard">
             <span>📋</span> <span>${copyLabel}</span>
@@ -724,11 +773,34 @@ export async function mountStatLab(rootEl, config = {}) {
         );
       };
     }
+
+    const btnLoadQuad = templateGuideBox.querySelector("#sl-btn-load-quad-feed");
+    if (btnLoadQuad) {
+      btnLoadQuad.onclick = () => {
+        const quadHeaders = ["Dosis_Pakan_Persen", "Laju_Pertumbuhan_Harian"];
+        const quadRows = [
+          ["1.5", "1.10"], ["2.0", "1.65"], ["2.5", "2.15"], ["3.0", "2.60"],
+          ["3.5", "2.95"], ["4.0", "3.20"], ["4.5", "3.28"], ["5.0", "3.18"],
+          ["5.5", "2.92"], ["6.0", "2.50"], ["6.5", "1.95"], ["7.0", "1.30"]
+        ];
+        grid.setData(quadHeaders, quadRows);
+        syncRolesWithGrid();
+        rolePanel.setMapping({ mode: "wide", response_cols: quadHeaders, group_col: null });
+        grid.showToast(
+          isId ? "Contoh Dosis Pakan vs Pertumbuhan (Kuadratik) berhasil dimuat!" : "Feed dose vs growth (Quadratic) dataset loaded!",
+          "success"
+        );
+      };
+    }
   }
 
   // Handle Analysis Selection Change
+  const curveModelGroup = rootEl.querySelector("#sl-curve-model-group");
   analysisSelect.onchange = (e) => {
     const key = e.target.value;
+    if (curveModelGroup) {
+      curveModelGroup.style.display = key === "curve_estimation" ? "block" : "none";
+    }
     renderTemplateGuide(key);
   };
 
@@ -962,6 +1034,9 @@ export async function mountStatLab(rootEl, config = {}) {
         analysisToRun = "paired_t";
       }
 
+      const curveModelSelect = rootEl.querySelector("#sl-curve-model-select");
+      const targetCurveModel = curveModelSelect ? curveModelSelect.value : "all";
+
       const res = await engine.runAnalysis(
         analysisToRun,
         typed.columns,
@@ -970,7 +1045,8 @@ export async function mountStatLab(rootEl, config = {}) {
           alpha: state.alpha,
           exclude_rows: grid.getExcludedRows(),
           include_plots: true,
-          lang: state.lang
+          lang: state.lang,
+          model: targetCurveModel
         }
       );
 

@@ -57,6 +57,26 @@ export const ANALYSIS_SCHEMAS = {
     minNumericCols: 2,
     maxNumericCols: 2,
     supportsGrouping: false
+  },
+  curve_estimation: {
+    name: { id: "Regresi & Estimasi Kurva", en: "Curve Estimation & Regression" },
+    description: {
+      id: "Estimasi kurva linier, kuadratik (titik optimum), power/alometrik (panjang-bobot), eksponensial, dan logaritmik.",
+      en: "Curve estimation: linear, quadratic (optimum vertex), power/allometric (length-weight), exponential, and logarithmic."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    supportsGrouping: false
+  },
+  regression: {
+    name: { id: "Regresi & Korelasi Linier", en: "Linear Regression & Correlation" },
+    description: {
+      id: "Analisis pengaruh linier (Y = a + bX) dan korelasi Pearson/Spearman.",
+      en: "Linear regression model (Y = a + bX) and Pearson/Spearman correlation."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    supportsGrouping: false
   }
 };
 

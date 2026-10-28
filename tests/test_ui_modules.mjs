@@ -218,6 +218,8 @@ assert.deepEqual(mapping2.response_cols, ["Kontrol", "Pakan_A", "Pakan_B"]);
 // Validation checks
 const validRes = rolePanel.validate();
 assert.equal(validRes.valid, true);
+assert.ok(ANALYSIS_SCHEMAS.curve_estimation, "ANALYSIS_SCHEMAS must contain curve_estimation");
+assert.equal(ANALYSIS_SCHEMAS.curve_estimation.minNumericCols, 2);
 
 // Invalid case: no response columns
 rolePanel.setMapping({ mode: "wide", response_cols: [], group_col: null });
