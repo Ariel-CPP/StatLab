@@ -183,6 +183,62 @@ assert_true(lev_sep_mn$valid, "Large between-group mean separation n=3 Levene me
 assert_near(lev_sep_mn$statistic, ref_sep_mn$`F value`[1], 1e-8, "Large mean separation Levene mean F vs car")
 assert_near(lev_sep_mn$p_value, ref_sep_mn$`Pr(>F)`[1], 1e-8, "Large mean separation Levene mean p vs car")
 
+# High-baseline 1e15 exact IEEE-754 integers, mixed 1 vs 1e15 baselines, and 1.7e9 + 1e-5 straddling groups vs car::leveneTest
+g_2x3 <- factor(rep(c("A", "B"), each = 3))
+levene_shift_cases <- list(
+  int_1e15_med = list(
+    y = c(1e15 + 1, 1e15 + 2, 1e15 + 5, 2e15 + 1, 2e15 + 2, 2e15 + 3),
+    center = "median",
+    cfn = stats::median
+  ),
+  int_1e15_mean = list(
+    y = c(1e15 + 1, 1e15 + 2, 1e15 + 6, 2e15 + 1, 2e15 + 2, 2e15 + 3),
+    center = "mean",
+    cfn = base::mean
+  ),
+  mixed_1_vs_1e15_med = list(
+    y = c(1, 2, 5, 1e15 + 1, 1e15 + 2, 1e15 + 3),
+    center = "median",
+    cfn = stats::median
+  ),
+  mixed_1_vs_1e15_mean = list(
+    y = c(1, 2, 6, 1e15 + 1, 1e15 + 2, 1e15 + 3),
+    center = "mean",
+    cfn = base::mean
+  ),
+  straddle_1e9_med = list(
+    y = c(1.7e9 + c(1e-5, 2e-5, 3e-5), 1.7e9 + c(1e-5, 2e-5, 5e-5)),
+    center = "median",
+    cfn = stats::median
+  ),
+  straddle_1e9_mean = list(
+    y = c(1.7e9 + c(1e-5, 2e-5, 3e-5), 1.7e9 + c(1e-5, 2e-5, 5e-5)),
+    center = "mean",
+    cfn = base::mean
+  )
+)
+
+for (case_nm in names(levene_shift_cases)) {
+  sc <- levene_shift_cases[[case_nm]]
+  ours_sc <- sl_levene_test(sc$y, g_2x3, center = sc$center)
+  ref_sc  <- car::leveneTest(sc$y, g_2x3, center = sc$cfn)
+  assert_true(isTRUE(ours_sc$valid), paste("Levene shift-invariance valid:", case_nm))
+  assert_near(ours_sc$statistic, ref_sc$`F value`[1], 1e-8, paste("Levene shift-invariance F vs car:", case_nm))
+  assert_near(ours_sc$p_value, ref_sc$`Pr(>F)`[1], 1e-8, paste("Levene shift-invariance p vs car:", case_nm))
+}
+
+# Symmetric 2-point n=6 high-baseline groups under center="mean" (1-ULP division rounding) -> zero_variance
+y_hi_sym6 <- c(rep(1e7 + 0.1, 3), rep(1e7 + 0.3, 3), rep(1e7 + 0.1, 3), rep(1e7 + 0.5, 3))
+g_hi_sym6 <- factor(rep(c("A", "B"), each = 6))
+lev_hi_sym6 <- sl_levene_test(y_hi_sym6, g_hi_sym6, center = "mean")
+assert_true(!lev_hi_sym6$valid && identical(lev_hi_sym6$note_key, "zero_variance"),
+            "High-baseline symmetric 2-point n=6 groups (center='mean') returns valid=FALSE (zero_variance)")
+
+# Extreme overflow (1e200 squared -> Inf) propagates Inf -> computation_failed (never zero_variance)
+lev_overflow <- sl_levene_test(c(-1e200, 0, 1e200, -1e200, 0, 1e200), g_2x3, center = "median")
+assert_true(!lev_overflow$valid && identical(lev_overflow$note_key, "computation_failed"),
+            "Extreme 1e200 overflow propagates Inf into ss_within and returns note_key='computation_failed'")
+
 # 8. Spec §6.2 & Downstream JSON Contract for sl_check_assumptions
 # 8a. Skewed residuals trigger violation even when per-group values are normal
 norm_2g <- c(qnorm(ppoints(12), mean = 10, sd = 1), qnorm(ppoints(12), mean = 15, sd = 1))

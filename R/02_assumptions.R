@@ -266,33 +266,47 @@ sl_levene_test <- function(values, groups, center = "median") {
 
   z_means <- numeric(k)
   n_grps <- integer(k)
+  d_chunks <- vector("list", k)
   ss_within <- 0.0
-  noise_tol <- 16.0 * .Machine$double.eps
 
   for (i in seq_len(k)) {
     yi <- split_y[[i]]
     ni <- length(yi)
     n_grps[i] <- ni
+    di <- yi - yi[1L]
 
     if (max(yi) == min(yi)) {
       z_means[i] <- 0.0
     } else if (ni <= 2L) {
-      z_means[i] <- 0.5 * abs(yi[2L] - yi[1L])
+      z_means[i] <- 0.5 * abs(di[2L])
     } else {
-      ci <- center_fn(yi)
-      zi <- abs(yi - ci)
+      d_chunks[[i]] <- di
+      ci <- center_fn(di)
+      zi <- abs(di - ci)
       zbar_i <- mean(zi)
       z_means[i] <- zbar_i
       ss_i <- sum((zi - zbar_i) ^ 2)
-      m_i <- max(abs(yi))
-      norm_yi <- m_i * sqrt(sum((yi / m_i) ^ 2))
-      if (is.finite(ss_i) && sqrt(ss_i) > noise_tol * norm_yi) {
-        ss_within <- ss_within + ss_i
-      }
+      ss_within <- ss_within + ss_i
     }
   }
 
-  if (!is.finite(ss_within) || ss_within <= 0) {
+  d_active <- unlist(d_chunks, use.names = FALSE)
+  if (!is.finite(ss_within) || any(!is.finite(z_means)) ||
+      (length(d_active) > 0L && any(!is.finite(d_active)))) {
+    return(list(
+      valid = FALSE,
+      center = center,
+      df1 = df1,
+      df2 = df2,
+      statistic = NA_real_,
+      p_value = NA_real_,
+      note_key = "computation_failed"
+    ))
+  }
+
+  max_d <- if (length(d_active) > 0L) max(abs(d_active)) else 0.0
+  norm_d_total <- if (max_d == 0) 0.0 else max_d * sqrt(sum((d_active / max_d) ^ 2))
+  if (ss_within <= 0 || sqrt(ss_within) <= 16.0 * .Machine$double.eps * norm_d_total) {
     return(list(
       valid = FALSE,
       center = center,
