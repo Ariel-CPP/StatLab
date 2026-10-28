@@ -1,0 +1,26 @@
+{
+  "name": "StatLab Biostatistics Notebook",
+  "short_name": "StatLab",
+  "description": "Independent, browser-based biostatistics notebook powered by pure Base R in WebAssembly",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FBF8F1",
+  "theme_color": "#FBF8F1",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "./assets/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

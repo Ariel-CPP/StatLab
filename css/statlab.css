@@ -594,3 +594,187 @@ body.sl-standalone .sl-toast.sl-toast-success {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Navigation, Tabs & Session Report Layout */
+.sl-app .sl-navbar,
+body.sl-standalone .sl-navbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--sl-surface);
+  border-bottom: 2px solid var(--sl-ink);
+  padding: 12px 24px;
+  box-shadow: var(--sl-shadow-sm);
+}
+
+.sl-app .sl-nav-brand,
+body.sl-standalone .sl-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sl-app .sl-nav-brand img,
+body.sl-standalone .sl-nav-brand img {
+  width: 32px;
+  height: 32px;
+}
+
+.sl-app .sl-nav-title,
+body.sl-standalone .sl-nav-title {
+  font-family: var(--sl-font-serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--sl-ink);
+  margin: 0;
+}
+
+.sl-app .sl-nav-controls,
+body.sl-standalone .sl-nav-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.sl-app .sl-project-title-input,
+body.sl-standalone .sl-project-title-input {
+  font-family: var(--sl-font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sl-ink);
+  background: var(--sl-paper);
+  border: 1px solid var(--sl-border-dark);
+  border-radius: var(--sl-radius-sm);
+  padding: 5px 10px;
+  min-width: 220px;
+}
+
+.sl-app .sl-select,
+body.sl-standalone .sl-select {
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--sl-border-dark);
+  border-radius: var(--sl-radius-sm);
+  background: var(--sl-surface);
+  color: var(--sl-ink);
+}
+
+.sl-app .sl-engine-badge,
+body.sl-standalone .sl-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #E5E7EB;
+  color: #374151;
+}
+
+.sl-app .sl-engine-badge.sl-ready,
+body.sl-standalone .sl-engine-badge.sl-ready {
+  background: var(--sl-success-bg);
+  color: var(--sl-success);
+}
+
+.sl-app .sl-engine-badge.sl-computing,
+body.sl-standalone .sl-engine-badge.sl-computing {
+  background: var(--sl-warning-bg);
+  color: var(--sl-warning);
+}
+
+.sl-app .sl-tabs,
+body.sl-standalone .sl-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--sl-border);
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.sl-app .sl-tab-btn,
+body.sl-standalone .sl-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sl-ink-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sl-app .sl-tab-btn:hover,
+body.sl-standalone .sl-tab-btn:hover {
+  color: var(--sl-ink);
+  background: rgba(27, 54, 93, 0.03);
+}
+
+.sl-app .sl-tab-btn.active,
+body.sl-standalone .sl-tab-btn.active {
+  color: var(--sl-ink);
+  border-bottom-color: var(--sl-crimson);
+  background: var(--sl-surface);
+}
+
+.sl-app .sl-counter-pill,
+body.sl-standalone .sl-counter-pill {
+  display: inline-block;
+  background: var(--sl-ink-light);
+  color: #FFFFFF;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
+.sl-app .sl-tab-pane,
+body.sl-standalone .sl-tab-pane {
+  display: none;
+}
+
+.sl-app .sl-tab-pane.active,
+body.sl-standalone .sl-tab-pane.active {
+  display: block;
+}
+
+.sl-app .sl-report-item-card,
+body.sl-standalone .sl-report-item-card {
+  background: #FFFFFF;
+  border: 1px solid var(--sl-border);
+  border-left: 3px solid var(--sl-ink);
+  border-radius: var(--sl-radius-sm);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--sl-shadow-sm);
+}
+
+.sl-app .sl-report-item-card-header,
+body.sl-standalone .sl-report-item-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sl-app .sl-report-item-title,
+body.sl-standalone .sl-report-item-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sl-ink);
+  margin: 0;
+}
+
+.sl-app .sl-report-item-actions,
+body.sl-standalone .sl-report-item-actions {
+  display: flex;
+  gap: 6px;
+}
+

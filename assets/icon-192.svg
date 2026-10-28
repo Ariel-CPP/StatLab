@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="36" fill="#1B365D"/>
+  <rect x="6" y="6" width="180" height="180" rx="30" fill="none" stroke="#D97706" stroke-width="2.5" opacity="0.85"/>
+  <!-- Bell Curve / Normal Distribution line -->
+  <path d="M 28 135 C 55 135, 70 65, 96 65 C 122 65, 137 135, 164 135" fill="none" stroke="#0D5C75" stroke-width="6" stroke-linecap="round"/>
+  <!-- Greek Sigma (Σ) Symbol -->
+  <path d="M 62 60 L 130 60 L 98 96 L 130 132 L 62 132 L 62 120 L 108 120 L 82 96 L 108 72 L 62 72 Z" fill="#FBF8F1"/>
+  <!-- Flask Accent Dot -->
+  <circle cx="145" cy="58" r="7" fill="#D97706"/>
+</svg>
