@@ -267,26 +267,32 @@ sl_levene_test <- function(values, groups, center = "median") {
   z_means <- numeric(k)
   n_grps <- integer(k)
   ss_within <- 0.0
-  z_sq_sum <- 0.0
+  noise_tol <- 16.0 * .Machine$double.eps
 
   for (i in seq_len(k)) {
     yi <- split_y[[i]]
     ni <- length(yi)
     n_grps[i] <- ni
-    ci <- center_fn(yi)
-    zi <- abs(yi - ci)
-    zbar_i <- mean(zi)
-    z_means[i] <- zbar_i
-    ss_within <- ss_within + sum((zi - zbar_i) ^ 2)
-    z_sq_sum <- z_sq_sum + sum(zi ^ 2)
+
+    if (max(yi) == min(yi)) {
+      z_means[i] <- 0.0
+    } else if (ni <= 2L) {
+      z_means[i] <- 0.5 * abs(yi[2L] - yi[1L])
+    } else {
+      ci <- center_fn(yi)
+      zi <- abs(yi - ci)
+      zbar_i <- mean(zi)
+      z_means[i] <- zbar_i
+      ss_i <- sum((zi - zbar_i) ^ 2)
+      m_i <- max(abs(yi))
+      norm_yi <- m_i * sqrt(sum((yi / m_i) ^ 2))
+      if (is.finite(ss_i) && sqrt(ss_i) > noise_tol * norm_yi) {
+        ss_within <- ss_within + ss_i
+      }
+    }
   }
 
-  zbar_all <- sum(n_grps * z_means) / N
-  ss_between <- sum(n_grps * ((z_means - zbar_all) ^ 2))
-
-  scale_ref <- max(z_sq_sum, sum((y - mean(y)) ^ 2))
-  if (!is.finite(ss_within) || ss_within == 0 ||
-      ss_within <= (.Machine$double.eps ^ 1.25) * scale_ref) {
+  if (!is.finite(ss_within) || ss_within <= 0) {
     return(list(
       valid = FALSE,
       center = center,
@@ -297,6 +303,9 @@ sl_levene_test <- function(values, groups, center = "median") {
       note_key = "zero_variance"
     ))
   }
+
+  zbar_all <- sum(n_grps * z_means) / N
+  ss_between <- sum(n_grps * ((z_means - zbar_all) ^ 2))
 
   ms_between <- ss_between / df1
   ms_within <- ss_within / df2
@@ -518,12 +527,10 @@ sl_check_assumptions <- function(
 
   if (!is.null(groups) && isTRUE(require_homogeneity) && non_empty_groups >= 2L) {
     lev_bf <- sl_levene_test(y_raw, groups, center = "median")
-    lev_mn <- sl_levene_test(y_raw, groups, center = "mean")
     bart <- sl_bartlett_test(y_raw, groups)
     is_hom <- if (isTRUE(lev_bf$valid)) !(lev_bf$p_value < alpha) else NA
     homogeneity <- list(
       levene_bf = lev_bf,
-      levene_mean = lev_mn,
       bartlett = bart,
       is_homogeneous = is_hom
     )

@@ -154,6 +154,35 @@ assert_true(!sl_bartlett_test(c(10, 20, 22), factor(c("A", "B", "B")))$valid,
 assert_true(!sl_bartlett_test(c(10, 20, 30), factor(rep("OnlyOne", 3)))$valid,
             "Single-group Bartlett returns valid=FALSE")
 
+# High-baseline (10^7 cells/mL) n=2 and symmetric 2-point n=4 groups (identically zero deviation variance)
+y_hi_n2 <- c(1e7 + 0.1, 1e7 + 0.3, 1e7 + 0.1, 1e7 + 0.5)
+g_hi_n2 <- factor(c("A", "A", "B", "B"))
+lev_hi_n2 <- sl_levene_test(y_hi_n2, g_hi_n2, center = "median")
+assert_true(!lev_hi_n2$valid && identical(lev_hi_n2$note_key, "zero_variance"),
+            "High-baseline n=2 groups Levene returns valid=FALSE (zero_variance), not rounding noise F")
+
+y_hi_sym4 <- c(1e7 + 0.1, 1e7 + 0.1, 1e7 + 0.3, 1e7 + 0.3,
+               1e7 + 0.1, 1e7 + 0.1, 1e7 + 0.5, 1e7 + 0.5)
+g_hi_sym4 <- factor(rep(c("A", "B"), each = 4))
+lev_hi_sym4 <- sl_levene_test(y_hi_sym4, g_hi_sym4, center = "median")
+assert_true(!lev_hi_sym4$valid && identical(lev_hi_sym4$note_key, "zero_variance"),
+            "High-baseline symmetric 2-point n=4 groups Levene returns valid=FALSE (zero_variance)")
+
+# Large between-group mean separation with small within-group SD (n >= 3) vs car::leveneTest
+y_big_sep <- c(1e-4, 2e-4, 3e-4, 1e7 + 1e-4, 1e7 + 2e-4, 1e7 + 3e-4)
+g_big_sep <- factor(c("A", "A", "A", "B", "B", "B"))
+lev_sep_med <- sl_levene_test(y_big_sep, g_big_sep, center = "median")
+ref_sep_med <- car::leveneTest(y_big_sep, g_big_sep, center = median)
+assert_true(lev_sep_med$valid, "Large between-group mean separation n=3 Levene median remains valid")
+assert_near(lev_sep_med$statistic, ref_sep_med$`F value`[1], 1e-8, "Large mean separation Levene BF F vs car")
+assert_near(lev_sep_med$p_value, ref_sep_med$`Pr(>F)`[1], 1e-8, "Large mean separation Levene BF p vs car")
+
+lev_sep_mn <- sl_levene_test(y_big_sep, g_big_sep, center = "mean")
+ref_sep_mn <- car::leveneTest(y_big_sep, g_big_sep, center = mean)
+assert_true(lev_sep_mn$valid, "Large between-group mean separation n=3 Levene mean remains valid")
+assert_near(lev_sep_mn$statistic, ref_sep_mn$`F value`[1], 1e-8, "Large mean separation Levene mean F vs car")
+assert_near(lev_sep_mn$p_value, ref_sep_mn$`Pr(>F)`[1], 1e-8, "Large mean separation Levene mean p vs car")
+
 # 8. Spec §6.2 & Downstream JSON Contract for sl_check_assumptions
 # 8a. Skewed residuals trigger violation even when per-group values are normal
 norm_2g <- c(qnorm(ppoints(12), mean = 10, sd = 1), qnorm(ppoints(12), mean = 15, sd = 1))
@@ -200,8 +229,8 @@ assert_true(chk_heavy$homogeneity$bartlett$p_value < 0.05 &&
             identical(chk_heavy$homogeneity_violated, FALSE) &&
             identical(chk_heavy$homogeneity$is_homogeneous, TRUE),
             "Spec §6.2: Brown-Forsythe Levene (not Bartlett) governs homogeneity_violated")
-assert_true(!is.null(chk_heavy$homogeneity$levene_mean) && chk_heavy$homogeneity$levene_mean$valid,
-            "homogeneity includes levene_mean alongside levene_bf and bartlett")
+assert_true(identical(names(chk_heavy$homogeneity), c("levene_bf", "bartlett", "is_homogeneous")),
+            "homogeneity contains strictly levene_bf, bartlett, and is_homogeneous per task brief")
 
 chk_no_hom <- sl_check_assumptions(iris$Sepal.Length, iris$Species, alpha = 0.05, require_homogeneity = FALSE)
 assert_true(is.null(chk_no_hom$homogeneity) && identical(chk_no_hom$homogeneity_violated, FALSE),
