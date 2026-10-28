@@ -263,10 +263,10 @@ export const ANALYSIS_TEMPLATES = {
   },
   manova: {
     id: "manova",
-    name: "MANOVA (Multivariate ANOVA: Bobot, Panjang & Biomassa)",
+    name: "MANOVA (Multivariate ANOVA: Bobot & Panjang)",
     category: "Multivariat & Survival (Roadmap Phase 3)",
-    formatMode: "Format Panjang (1 Kolom Faktor + ≥ 2 Kolom Respon)",
-    shortDesc: "Format panjang dengan 1 kolom faktor perlakuan dan ≥ 2 kolom respon numerik simultan (uji Pillai, Wilks, Hotelling).",
+    formatMode: "Format Panjang (1 Kolom Faktor + 1 Kolom Respon Terpilih)",
+    shortDesc: "Format panjang dengan 1 kolom faktor perlakuan dan kolom respon numerik (Bobot_g, Panjang_cm, Biomassa_g).",
     headers: ["Perlakuan", "Bobot_g", "Panjang_cm", "Biomassa_g"],
     rows: [
       ["Kontrol", "12.4", "10.2", "124.0"],
@@ -279,7 +279,7 @@ export const ANALYSIS_TEMPLATES = {
       ["Pakan_B", "16.2", "11.9", "162.0"],
       ["Pakan_B", "16.5", "12.0", "165.0"]
     ],
-    roles: { mode: "long", response_cols: ["Bobot_g", "Panjang_cm", "Biomassa_g"], group_col: "Perlakuan" },
+    roles: { mode: "long", response_cols: ["Bobot_g"], group_col: "Perlakuan" },
     analysisType: "descriptive"
   },
   kaplan_meier: {
@@ -287,7 +287,7 @@ export const ANALYSIS_TEMPLATES = {
     name: "Survival Analysis Kaplan-Meier (Uji Tantang Vibriosis)",
     category: "Multivariat & Survival (Roadmap Phase 3)",
     formatMode: "Format Waktu-ke-Kejadian (Time, Status, Group)",
-    shortDesc: "Kolom 1 waktu kejadian, kolom 2 status (1 = mati/event, 0 = sensor/selamat), kolom 3 kelompok perlakuan untuk uji Log-rank.",
+    shortDesc: "Kolom 1 waktu kejadian (Waktu_Jam), kolom 2 status sensor, kolom 3 kelompok perlakuan untuk kurva ketahanan hidup.",
     headers: ["Waktu_Jam", "Status_Sensor", "Perlakuan"],
     rows: [
       ["12", "1", "Kontrol"],
@@ -303,7 +303,7 @@ export const ANALYSIS_TEMPLATES = {
       ["72", "0", "Probiotik"],
       ["72", "0", "Probiotik"]
     ],
-    roles: { mode: "long", response_cols: ["Waktu_Jam", "Status_Sensor"], group_col: "Perlakuan" },
+    roles: { mode: "long", response_cols: ["Waktu_Jam"], group_col: "Perlakuan" },
     analysisType: "descriptive"
   },
   pca_hca: {

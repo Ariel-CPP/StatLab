@@ -121,12 +121,12 @@ export class RoleMappingPanel {
       const numericCols = this.columns.filter(c => this.columnTypes[c] === "numeric");
 
       if (col1Type === "text" && col2Type === "numeric") {
-        // Long mode: group_col is col 1, response_cols are numeric columns (or col 2)
+        // Long mode: group_col is col 1, response_cols is exactly 1 numeric column
         const respCols = this.columns.slice(1).filter(c => this.columnTypes[c] !== "text");
         this.mapping = {
           mode: "long",
           group_col: col1,
-          response_cols: respCols.length > 0 ? respCols : [col2]
+          response_cols: respCols.length > 0 ? [respCols[0]] : [col2]
         };
       } else if (numericCols.length >= 2) {
         // Wide mode: each numeric column is a treatment group
@@ -180,10 +180,15 @@ export class RoleMappingPanel {
    */
   setMapping(mapping) {
     if (!mapping || typeof mapping !== "object") return;
+    const mode = mapping.mode === "long" ? "long" : "wide";
+    let respCols = Array.isArray(mapping.response_cols) ? [...mapping.response_cols] : [];
+    if (mode === "long" && respCols.length > 1) {
+      respCols = [respCols[0]];
+    }
     this.mapping = {
-      mode: mapping.mode === "long" ? "long" : "wide",
-      response_cols: Array.isArray(mapping.response_cols) ? [...mapping.response_cols] : [],
-      group_col: mapping.mode === "long" ? (mapping.group_col || null) : null
+      mode: mode,
+      response_cols: respCols,
+      group_col: mode === "long" ? (mapping.group_col || null) : null
     };
     this.userCustomized = true;
     this.render();
@@ -216,6 +221,9 @@ export class RoleMappingPanel {
       }
       if (this.mapping.group_col && this.mapping.response_cols.includes(this.mapping.group_col)) {
         errors.push("Kolom kelompok tidak boleh dipilih sebagai variabel respon.");
+      }
+      if (this.mapping.response_cols.length !== 1) {
+        errors.push("Pada format data panjang (Long), pilih tepat 1 kolom nilai respon numerik.");
       }
     }
 
@@ -287,12 +295,15 @@ export class RoleMappingPanel {
         <div class="sl-role-resp-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;">
     `;
 
+    const isLongMode = this.mapping.mode === "long";
     for (const col of this.columns) {
-      if (this.mapping.mode === "long" && col === this.mapping.group_col) continue;
+      if (isLongMode && col === this.mapping.group_col) continue;
       const isChecked = this.mapping.response_cols.includes(col);
+      const inputType = isLongMode ? "radio" : "checkbox";
+      const inputName = isLongMode ? "sl_role_resp_single" : `sl_role_resp_${escapeHtml(col)}`;
       html += `
         <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--sl-paper-dark);padding:4px 10px;border-radius:var(--sl-radius-sm);border:1px solid var(--sl-border);">
-          <input type="checkbox" class="sl-role-resp-chk" value="${escapeHtml(col)}" ${isChecked ? "checked" : ""} />
+          <input type="${inputType}" name="${inputName}" class="sl-role-resp-chk" value="${escapeHtml(col)}" ${isChecked ? "checked" : ""} />
           <span>${escapeHtml(col)}</span>
         </label>
       `;
@@ -324,7 +335,8 @@ export class RoleMappingPanel {
           this.mapping.mode = newMode;
           if (newMode === "long" && !this.mapping.group_col && this.columns.length > 0) {
             this.mapping.group_col = this.columns[0];
-            this.mapping.response_cols = this.columns.slice(1);
+            const numericOther = this.columns.slice(1).filter(c => this.columnTypes[c] === "numeric");
+            this.mapping.response_cols = numericOther.length > 0 ? [numericOther[0]] : (this.columns.length > 1 ? [this.columns[1]] : []);
           } else if (newMode === "wide") {
             this.mapping.group_col = null;
             this.mapping.response_cols = [...this.columns];
@@ -347,15 +359,19 @@ export class RoleMappingPanel {
       };
     }
 
-    // Response Checkboxes
+    // Response Checkboxes / Radios
     const respChks = this.containerEl.querySelectorAll(".sl-role-resp-chk");
     for (const chk of respChks) {
       chk.onchange = () => {
-        const selected = [];
-        for (const c of respChks) {
-          if (c.checked) selected.push(c.value);
+        if (this.mapping.mode === "long") {
+          this.mapping.response_cols = chk.checked ? [chk.value] : [];
+        } else {
+          const selected = [];
+          for (const c of respChks) {
+            if (c.checked) selected.push(c.value);
+          }
+          this.mapping.response_cols = selected;
         }
-        this.mapping.response_cols = selected;
         this.userCustomized = true;
         this._updateValidationBanner();
         this._notifyChange();
