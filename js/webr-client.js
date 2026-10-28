@@ -145,6 +145,10 @@ export class StatLabEngine {
       "07_ttest.R",
       "08_regression_chisq.R",
       "09_multivariate_survival.R",
+      "10_nonparametric.R",
+      "11_experimental_design.R",
+      "12_bioassay_probit.R",
+      "13_logistic_corr_matrix.R",
       "99_dispatcher.R"
     ];
 

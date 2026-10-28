@@ -115,4 +115,41 @@ assert.ok(leveneDiff <= 1e-8, `Levene parity failed: diff=${leveneDiff}`);
 assert.ok(webrRes.plots.length >= 2, "Expected at least 2 plots");
 assert.ok(webrRes.plots[0].png_data_url.startsWith("data:image/png;base64,"), "Plot 0 should be base64 PNG data URL");
 
-console.log("PASS: webR vs Desktop R 4.5.2 parity <= 1e-8");
+console.log("--- 7. Testing Newly Added Modules in webR (RCBD, Mann-Whitney, Probit) ---");
+const rcbdRes = await engine.runAnalysis(
+  "rcbd",
+  {
+    Blok_1: [24.5, 28.3, 33.8],
+    Blok_2: [26.0, 30.1, 35.2],
+    Blok_3: [25.2, 29.4, 34.6],
+    Blok_4: [27.1, 31.2, 36.5]
+  },
+  { mode: "wide", response_cols: ["Blok_1", "Blok_2", "Blok_3", "Blok_4"], group_col: null },
+  { include_plots: false }
+);
+assert.ok(rcbdRes && rcbdRes.main && rcbdRes.main.f_treatment !== undefined, "RCBD successfully executed in webR");
+
+const mwRes = await engine.runAnalysis(
+  "mann_whitney",
+  {
+    Kontrol: [12.5, 11.8, 13.0, 12.2],
+    Probiotik: [15.2, 16.0, 15.8, 16.5]
+  },
+  { mode: "wide", response_cols: ["Kontrol", "Probiotik"], group_col: null },
+  { include_plots: false }
+);
+assert.ok(mwRes && mwRes.main && mwRes.main.p_value !== undefined, "Mann-Whitney successfully executed in webR");
+
+const probitRes = await engine.runAnalysis(
+  "probit_lc50",
+  {
+    Konsentrasi_ppm: [0, 10, 25, 50, 100, 200],
+    Mortalitas_Ekor: [0, 2, 6, 11, 16, 20],
+    Total_Uji: [20, 20, 20, 20, 20, 20]
+  },
+  { mode: "wide", response_cols: ["Konsentrasi_ppm", "Mortalitas_Ekor", "Total_Uji"], group_col: null },
+  { include_plots: false }
+);
+assert.ok(probitRes && probitRes.main && probitRes.main.lc50 !== undefined, "Probit LC50 successfully executed in webR");
+
+console.log("PASS: webR vs Desktop R 4.5.2 parity <= 1e-8 and all new modules verified in webR");
