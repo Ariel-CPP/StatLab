@@ -217,13 +217,15 @@ export function buildSessionPdfDocDefinition(sessionState, options = {}) {
                 fontSize: 8.5,
                 fillColor: "#FBF8F1"
               })),
-              ...rows.map(row =>
-                row.map((cell, cIdx) => ({
+              ...rows.map(row => {
+                const safeRow = Array.isArray(row) ? [...row] : [];
+                while (safeRow.length < headers.length) safeRow.push("");
+                return safeRow.slice(0, headers.length).map((cell, cIdx) => ({
                   text: String(cell ?? ""),
                   fontSize: 8,
                   alignment: cIdx === 0 ? "left" : "right"
-                }))
-              )
+                }));
+              })
             ]
           },
           layout: {

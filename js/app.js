@@ -439,7 +439,14 @@ export async function mountStatLab(rootEl, config = {}) {
     const defTitle = typeof res.meta?.analysis_label === "object"
       ? (res.meta.analysis_label[lang] || res.meta.analysis_label.id)
       : (res.meta?.analysis_label || "Analisis");
-    const customTitle = (typeof window !== "undefined" && window.prompt) ? window.prompt(promptMsg, defTitle) : defTitle;
+    let customTitle = defTitle;
+    try {
+      if (typeof window !== "undefined" && typeof window.prompt === "function") {
+        customTitle = window.prompt(promptMsg, defTitle) || defTitle;
+      }
+    } catch {
+      customTitle = defTitle;
+    }
 
     store.addReportItem(res, customTitle || defTitle);
     grid.showToast(isEn ? "Analysis added to Session Report!" : "Analisis ditambahkan ke Laporan Sesi!", "success");
