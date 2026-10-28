@@ -23,6 +23,15 @@ assert.equal(parsedId.locale.decimalMark, ",");
 assert.equal(parseCellValue("12,45", "auto", parsedId.locale).value, 12.45);
 assert.equal(parseCellValue("1.234,56", "auto", parsedId.locale).value, 1234.56);
 
+// Isolated dual-separator auto-detection
+assert.equal(parseCellValue("1.234,56", "auto").value, 1234.56);
+assert.equal(parseCellValue("1,234.56", "auto").value, 1234.56);
+
+// Explicit mode override on delimited text
+const forcedId = parseDelimitedText("X;Y\n1.234;5.678\n", "id_comma");
+assert.equal(forcedId.locale.decimalMark, ",");
+assert.equal(forcedId.locale.ambiguous, false);
+
 console.log("--- 3. Review Focus #1: Ambiguous 3-trailing-digit '1.234' without comma clues ---");
 const ambig = detectLocaleFormat("Bobot\n1.234\n2.345\n");
 assert.equal(ambig.ambiguous, true, "3-digit dot pattern flagged ambiguous");

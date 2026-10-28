@@ -176,7 +176,16 @@ export function parseCellValue(raw, mode = "auto", detected = null) {
     thous = detected.thousandsMark || (dec === "," ? "." : ",");
   } else {
     // Auto-detect single cell value
-    if (trimmed.includes(",") && !trimmed.includes(".")) {
+    if (trimmed.includes(",") && trimmed.includes(".")) {
+      // Both separators present: the last one is the decimal mark
+      if (trimmed.lastIndexOf(",") > trimmed.lastIndexOf(".")) {
+        dec = ",";
+        thous = ".";
+      } else {
+        dec = ".";
+        thous = ",";
+      }
+    } else if (trimmed.includes(",") && !trimmed.includes(".")) {
       dec = ",";
       thous = ".";
     } else {
@@ -233,6 +242,17 @@ export function parseDelimitedText(rawText, mode = "auto") {
 
   const text = rawText.startsWith("\uFEFF") ? rawText.slice(1) : rawText;
   const locale = detectLocaleFormat(text);
+
+  if (mode === "id_comma" || mode === "id") {
+    locale.decimalMark = ",";
+    locale.thousandsMark = ".";
+    locale.ambiguous = false;
+  } else if (mode === "en_dot" || mode === "en") {
+    locale.decimalMark = ".";
+    locale.thousandsMark = ",";
+    locale.ambiguous = false;
+  }
+
   const delim = locale.delimiter;
 
   // Parse lines with RFC-4180 quotes handling

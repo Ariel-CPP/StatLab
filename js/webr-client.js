@@ -20,7 +20,8 @@ function toRExpr(val, key = "") {
   if (Array.isArray(val)) {
     if (val.length === 0) {
       if (key === "exclude_rows") return "integer(0)";
-      if (key.includes("cols") || key === "items" || key === "lang") return "character(0)";
+      if (key === "items") return "list()";
+      if (key.includes("cols") || key === "lang") return "character(0)";
       return "list()";
     }
     if (val.every(x => typeof x === "number")) {
