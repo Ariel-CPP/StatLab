@@ -325,11 +325,12 @@ export class StatLabGrid {
    */
   showToast(message, type = "info") {
     if (typeof document === "undefined") return;
-    let container = document.querySelector(".sl-toast-container");
+    const parent = (this.containerEl && typeof this.containerEl.closest === "function" && this.containerEl.closest(".sl-app")) || document.body;
+    let container = parent.querySelector(".sl-toast-container") || document.querySelector(".sl-toast-container");
     if (!container) {
       container = document.createElement("div");
       container.className = "sl-toast-container";
-      document.body.appendChild(container);
+      parent.appendChild(container);
     }
     const toast = document.createElement("div");
     toast.className = `sl-toast sl-toast-${type}`;

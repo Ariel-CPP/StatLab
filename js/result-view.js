@@ -173,8 +173,12 @@ export function renderAnalysisResult(containerEl, result, options = {}) {
       const statusText = grpNormal === true
         ? (isId ? "Normal" : "Normal")
         : (grpNormal === false ? (isId ? "Tidak Normal" : "Non-normal") : "-");
-      const statW = sw.valid && sw.statistic !== undefined ? sw.statistic.toFixed(4) : "-";
-      const pValW = sw.valid && sw.p_value !== undefined ? (sw.p_value < 0.001 ? "< 0,001" : sw.p_value.toFixed(4)) : "-";
+      const statW = sw.valid && sw.statistic !== undefined
+        ? (isId ? sw.statistic.toFixed(4).replace(".", ",") : sw.statistic.toFixed(4))
+        : "-";
+      const pValW = sw.valid && sw.p_value !== undefined
+        ? (sw.p_value < 0.001 ? (isId ? "< 0,001" : "< 0.001") : (isId ? sw.p_value.toFixed(4).replace(".", ",") : sw.p_value.toFixed(4)))
+        : "-";
 
       html += `
         <li style="margin-bottom:3px;">
@@ -191,8 +195,12 @@ export function renderAnalysisResult(containerEl, result, options = {}) {
     const lev = assumptions.homogeneity.levene_bf;
     const bart = assumptions.homogeneity.bartlett || {};
     if (lev.valid) {
-      const levStat = lev.statistic !== undefined ? lev.statistic.toFixed(4) : "-";
-      const levP = lev.p_value !== undefined ? (lev.p_value < 0.001 ? "< 0,001" : lev.p_value.toFixed(4)) : "-";
+      const levStat = lev.statistic !== undefined
+        ? (isId ? lev.statistic.toFixed(4).replace(".", ",") : lev.statistic.toFixed(4))
+        : "-";
+      const levP = lev.p_value !== undefined
+        ? (lev.p_value < 0.001 ? (isId ? "< 0,001" : "< 0.001") : (isId ? lev.p_value.toFixed(4).replace(".", ",") : lev.p_value.toFixed(4)))
+        : "-";
       const homoText = lev.is_homo
         ? (isId ? "Homogen" : "Homogeneous")
         : (isId ? "Tidak Homogen (Heterogen)" : "Heterogeneous");

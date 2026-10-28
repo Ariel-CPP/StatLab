@@ -357,8 +357,34 @@ export class RoleMappingPanel {
         }
         this.mapping.response_cols = selected;
         this.userCustomized = true;
+        this._updateValidationBanner();
         this._notifyChange();
       };
+    }
+  }
+
+  _updateValidationBanner() {
+    if (!this.containerEl || typeof this.containerEl.querySelector !== "function") return;
+    const validation = this.validate();
+    const panel = this.containerEl.querySelector(".sl-role-panel");
+    let banner = this.containerEl.querySelector(".sl-role-panel > .sl-alert-banner");
+
+    if (!validation.valid) {
+      const errHtml = validation.errors.map(err => `<div>&bull; ${escapeHtml(err)}</div>`).join("");
+      if (!banner) {
+        if (typeof document !== "undefined" && typeof document.createElement === "function") {
+          banner = document.createElement("div");
+          banner.className = "sl-alert-banner sl-violated";
+          banner.style.cssText = "margin-top:12px;padding:8px 12px;color:var(--sl-crimson);font-size:12.5px;";
+          if (panel) panel.appendChild(banner);
+        }
+      }
+      if (banner) {
+        banner.innerHTML = errHtml;
+        banner.style.display = "";
+      }
+    } else if (banner) {
+      banner.style.display = "none";
     }
   }
 }
