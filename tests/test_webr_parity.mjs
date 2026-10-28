@@ -90,10 +90,11 @@ const rCmd = `
     opts = list(alpha = 0.05, exclude_rows = integer(0), include_plots = FALSE)
   )))
 `;
+const rootDir = fileURLToPath(new URL("../", import.meta.url));
 const desktopJson = execFileSync(
   "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
   ["-"],
-  { input: rCmd, encoding: "utf8" }
+  { input: rCmd, encoding: "utf8", cwd: rootDir }
 );
 const deskRes = JSON.parse(desktopJson);
 

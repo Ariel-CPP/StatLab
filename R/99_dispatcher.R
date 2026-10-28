@@ -25,7 +25,11 @@ sl_dispatch <- function(action, payload = list()) {
       engine = "StatLab",
       r_version = paste0(R.version$major, ".", R.version$minor),
       platform = R.version$platform,
-      supported_analyses = sl_box_vec(c("descriptive", "oneway_anova", "anova", "twoway_anova", "independent_t", "paired_t", "regression", "chisquare_indep")),
+      supported_analyses = sl_box_vec(c(
+        "descriptive", "oneway_anova", "anova", "twoway_anova",
+        "independent_t", "paired_t", "regression", "chisquare_indep",
+        "repeated_measures", "manova", "kaplan_meier", "pca_hca"
+      )),
       recommended_packages = list(
         survival = nzchar(system.file(package = "survival")),
         cluster  = nzchar(system.file(package = "cluster")),
@@ -53,17 +57,21 @@ sl_dispatch <- function(action, payload = list()) {
 
     res <- switch(
       analysis_type,
-      descriptive     = sl_analyze_descriptive(df, opts),
-      oneway_anova    = sl_analyze_anova(df, opts),
-      anova           = sl_analyze_anova(df, opts),
-      twoway_anova    = sl_analyze_twoway_anova(df, opts),
-      independent_t   = sl_analyze_ttest_independent(df, opts),
-      ttest_indep     = sl_analyze_ttest_independent(df, opts),
-      paired_t        = sl_analyze_ttest_paired(df, opts),
-      ttest_paired    = sl_analyze_ttest_paired(df, opts),
-      regression      = sl_analyze_regression(df, opts),
-      chisquare_indep = sl_analyze_chisq(df, opts),
-      chisq           = sl_analyze_chisq(df, opts),
+      descriptive       = sl_analyze_descriptive(df, opts),
+      oneway_anova      = sl_analyze_anova(df, opts),
+      anova             = sl_analyze_anova(df, opts),
+      twoway_anova      = sl_analyze_twoway_anova(df, opts),
+      independent_t     = sl_analyze_ttest_independent(df, opts),
+      ttest_indep       = sl_analyze_ttest_independent(df, opts),
+      paired_t          = sl_analyze_ttest_paired(df, opts),
+      ttest_paired      = sl_analyze_ttest_paired(df, opts),
+      repeated_measures = sl_analyze_repeated_measures(df, opts),
+      regression        = sl_analyze_regression(df, opts),
+      chisquare_indep   = sl_analyze_chisq(df, opts),
+      chisq             = sl_analyze_chisq(df, opts),
+      manova            = sl_analyze_manova(df, opts),
+      kaplan_meier      = sl_analyze_kaplan_meier(df, opts),
+      pca_hca           = sl_analyze_pca_hca(df, opts),
       stop(sprintf("Unsupported `analysis_type`: %s", analysis_type))
     )
     return(sl_to_json(res))

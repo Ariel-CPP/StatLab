@@ -144,6 +144,7 @@ export class StatLabEngine {
       "06_anova.R",
       "07_ttest.R",
       "08_regression_chisq.R",
+      "09_multivariate_survival.R",
       "99_dispatcher.R"
     ];
 

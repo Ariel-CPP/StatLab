@@ -259,7 +259,7 @@ export const ANALYSIS_TEMPLATES = {
       ["Ikan_6", "11.2", "16.5", "23.4", "32.0"]
     ],
     roles: { mode: "wide", response_cols: ["Minggu_0", "Minggu_2", "Minggu_4", "Minggu_6"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "repeated_measures"
   },
   manova: {
     id: "manova",
@@ -280,7 +280,7 @@ export const ANALYSIS_TEMPLATES = {
       ["Pakan_B", "16.5", "12.0", "165.0"]
     ],
     roles: { mode: "long", response_cols: ["Bobot_g"], group_col: "Perlakuan" },
-    analysisType: "descriptive"
+    analysisType: "manova"
   },
   kaplan_meier: {
     id: "kaplan_meier",
@@ -304,7 +304,7 @@ export const ANALYSIS_TEMPLATES = {
       ["72", "0", "Probiotik"]
     ],
     roles: { mode: "long", response_cols: ["Waktu_Jam"], group_col: "Perlakuan" },
-    analysisType: "descriptive"
+    analysisType: "kaplan_meier"
   },
   pca_hca: {
     id: "pca_hca",
@@ -324,7 +324,7 @@ export const ANALYSIS_TEMPLATES = {
       ["Kolam_08", "6.1", "7.5", "21.9", "112", "0.18"]
     ],
     roles: { mode: "wide", response_cols: ["DO", "pH", "Salinitas", "Alkalinitas", "TAN"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "pca_hca"
   }
 };
 
