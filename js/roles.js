@@ -206,9 +206,9 @@ export const ANALYSIS_SCHEMAS = {
       id: "Regresi logistik biner dengan Odds Ratio Exp(B), Hosmer-Lemeshow, Pseudo R², dan kurva ROC/AUC.",
       en: "Binary logistic regression with Odds Ratio Exp(B), Hosmer-Lemeshow, Pseudo R², and ROC/AUC curve."
     },
-    allowedModes: ["long"],
-    minNumericCols: 1,
-    supportsGrouping: true
+    allowedModes: ["wide", "long"],
+    minNumericCols: 2,
+    supportsGrouping: false
   },
   correlation_matrix: {
     name: { id: "Matriks Korelasi & Heatmap", en: "Correlation Matrix & Heatmap" },

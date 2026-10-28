@@ -152,4 +152,16 @@ const probitRes = await engine.runAnalysis(
 );
 assert.ok(probitRes && probitRes.main && probitRes.main.lc50 !== undefined, "Probit LC50 successfully executed in webR");
 
+const logitRes = await engine.runAnalysis(
+  "binary_logistic",
+  {
+    Status_Sintasan: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+    DO_mgL: [6.5, 6.0, 5.8, 5.5, 5.2, 4.5, 4.2, 3.8, 3.5, 3.2],
+    TAN_ppm: [0.12, 0.18, 0.22, 0.25, 0.30, 0.55, 0.62, 0.75, 0.82, 0.90]
+  },
+  { mode: "wide", response_cols: ["Status_Sintasan", "DO_mgL", "TAN_ppm"], group_col: null },
+  { include_plots: false }
+);
+assert.ok(logitRes && logitRes.main && logitRes.main.auc !== undefined, "Binary Logistic successfully executed in webR");
+
 console.log("PASS: webR vs Desktop R 4.5.2 parity <= 1e-8 and all new modules verified in webR");

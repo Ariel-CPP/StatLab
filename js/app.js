@@ -515,7 +515,7 @@ export const ANALYSIS_TEMPLATES = {
       ["0", "3.5", "0.82"],
       ["0", "3.2", "0.90"]
     ],
-    roles: { mode: "long", response_cols: ["Status_Sintasan", "DO_mgL", "TAN_ppm"], group_col: null },
+    roles: { mode: "wide", response_cols: ["Status_Sintasan", "DO_mgL", "TAN_ppm"], group_col: null },
     analysisType: "binary_logistic"
   },
   correlation_matrix: {

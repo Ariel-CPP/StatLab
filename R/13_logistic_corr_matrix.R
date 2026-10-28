@@ -18,18 +18,81 @@ sl_analyze_binary_logistic <- function(df, opts = list()) {
   plot_lang <- if (!is.null(opts$plot_lang)) as.character(opts$plot_lang[[1L]]) else lang
 
   roles <- if (!is.null(opts$roles) && is.list(opts$roles)) opts$roles else list()
-  resp_col <- roles$response_col
-  pred_cols <- roles$predictor_cols
+  resp_col <- if (!is.null(roles$response_col) && length(roles$response_col) > 0L) as.character(roles$response_col[[1L]]) else NULL
+  pred_cols <- if (!is.null(roles$predictor_cols) && length(roles$predictor_cols) > 0L) as.character(unlist(roles$predictor_cols)) else NULL
 
-  if (is.null(resp_col) || !resp_col %in% names(df)) {
-    # Default: first binary or categorical column, or first column
-    resp_col <- names(df)[1L]
+  # Helper: check if a column has exactly 2 distinct non-NA values
+  is_binary_col <- function(col_name) {
+    if (is.null(col_name) || length(col_name) == 0L || is.na(col_name[[1L]]) || !col_name[[1L]] %in% names(df)) return(FALSE)
+    v <- df[[col_name[[1L]]]]
+    u <- unique(stats::na.omit(v))
+    length(u) == 2L
   }
 
+  has_valid_resp <- !is.null(resp_col) && length(resp_col) == 1L && (resp_col %in% names(df)) && is_binary_col(resp_col)
+
+  # Smart resolution of binary response column:
+  if (!has_valid_resp) {
+    # 1. Check if roles$group_col is binary
+    if (!is.null(roles$group_col) && length(roles$group_col) > 0L && is_binary_col(roles$group_col[[1L]])) {
+      resp_col <- as.character(roles$group_col[[1L]])
+    } else if (!is.null(roles$response_cols) && length(roles$response_cols) > 0L) {
+      # 2. Check if any column in response_cols is binary
+      for (rc in roles$response_cols) {
+        if (is_binary_col(rc)) {
+          resp_col <- as.character(rc)
+          break
+        }
+      }
+    }
+
+    # 3. If still not resolved or not binary, scan all columns in df
+    if (is.null(resp_col) || !is_binary_col(resp_col)) {
+      for (cn in names(df)) {
+        if (is_binary_col(cn)) {
+          resp_col <- cn
+          break
+        }
+      }
+    }
+
+    # 4. Fallback if no binary column exists
+    if (is.null(resp_col) || !resp_col %in% names(df)) {
+      resp_col <- if (!is.null(roles$response_cols) && length(roles$response_cols) > 0L && roles$response_cols[[1L]] %in% names(df)) {
+        as.character(roles$response_cols[[1L]])
+      } else {
+        names(df)[1L]
+      }
+    }
+  }
+
+  # Verify response column is strictly binary
+  v_resp <- stats::na.omit(df[[resp_col]])
+  u_cnt <- length(unique(v_resp))
+  if (u_cnt != 2L) {
+    if (identical(lang, "id")) {
+      stop(sprintf(
+        "Variabel respon '%s' memiliki %d nilai unik. Regresi Logistik Biner mensyaratkan variabel respon memiliki tepat 2 kategori biner (contoh: 0 dan 1, Hidup dan Mati, Sakit dan Sehat). Silakan pilih kolom respon biner pada data Anda atau muat template acuan.",
+        resp_col, u_cnt
+      ))
+    } else {
+      stop(sprintf(
+        "Response variable '%s' has %d distinct values. Binary Logistic Regression requires exactly 2 distinct classes (e.g. 0 and 1, Alive and Dead, Diseased and Healthy). Please select a binary response column or load the reference template.",
+        resp_col, u_cnt
+      ))
+    }
+  }
+
+  # Smart resolution of predictor columns
   if (is.null(pred_cols) || length(pred_cols) == 0L) {
-    pred_cols <- setdiff(names(df), resp_col)
-    # keep only numeric predictors
-    pred_cols <- pred_cols[vapply(df[pred_cols], is.numeric, logical(1))]
+    if (!is.null(roles$response_cols) && length(roles$response_cols) > 1L) {
+      cand <- setdiff(roles$response_cols, resp_col)
+      pred_cols <- cand[vapply(df[cand], is.numeric, logical(1))]
+    }
+    if (length(pred_cols) == 0L) {
+      cand <- setdiff(names(df), resp_col)
+      pred_cols <- cand[vapply(df[cand], is.numeric, logical(1))]
+    }
   }
 
   if (length(pred_cols) == 0L) {
