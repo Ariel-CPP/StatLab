@@ -100,16 +100,15 @@ export class StatLabEngine {
 
       this.webr = new WebR({ baseUrl: normalizedBase });
     } else {
-      // In Browser environment, dynamically import webr.mjs
-      const mjsUrl = this.baseUrl.endsWith("/") ? `${this.baseUrl}webr.mjs` : `${this.baseUrl}/webr.mjs`;
+      // In Browser environment, resolve baseUrl relative to document (window.location.href)
+      const docBase = (typeof window !== "undefined" && window.location) ? window.location.href : "http://localhost:8080/";
+      const resolvedBase = new URL(this.baseUrl, docBase).href;
+      const normalizedBase = resolvedBase.endsWith("/") ? resolvedBase : `${resolvedBase}/`;
+      const mjsUrl = new URL("webr.mjs", normalizedBase).href;
+
       const webrPkg = await import(mjsUrl);
       WebR = webrPkg.WebR;
       ChannelType = webrPkg.ChannelType;
-
-      let normalizedBase = this.baseUrl;
-      if (!normalizedBase.endsWith("/")) {
-        normalizedBase += "/";
-      }
 
       this.webr = new WebR({
         baseUrl: normalizedBase,
@@ -161,8 +160,11 @@ export class StatLabEngine {
         await this.webr.evalR(`source('/statlab/R/${fileName}', encoding = 'UTF-8')`);
       }
     } else {
+      const docBase = (typeof window !== "undefined" && window.location) ? window.location.href : "http://localhost:8080/";
+      const resolvedRPath = new URL(this.rPath, docBase).href;
+      const normalizedRPath = resolvedRPath.endsWith("/") ? resolvedRPath : `${resolvedRPath}/`;
       for (const fileName of rFileNames) {
-        const fileUrl = this.rPath.endsWith("/") ? `${this.rPath}${fileName}` : `${this.rPath}/${fileName}`;
+        const fileUrl = new URL(fileName, normalizedRPath).href;
         const res = await fetch(fileUrl);
         if (!res.ok) throw new Error(`Failed to fetch R module: ${fileUrl}`);
         const code = await res.text();
@@ -197,8 +199,11 @@ export class StatLabEngine {
         }
       }
     } else {
+      const docBase = (typeof window !== "undefined" && window.location) ? window.location.href : "http://localhost:8080/";
+      const resolvedRepoPath = new URL(this.repoPath, docBase).href;
+      const normalizedRepoPath = resolvedRepoPath.endsWith("/") ? resolvedRepoPath : `${resolvedRepoPath}/`;
       for (const pkg of pkgsToInstall) {
-        const pkgUrl = this.repoPath.endsWith("/") ? `${this.repoPath}${pkg}.tgz` : `${this.repoPath}/${pkg}.tgz`;
+        const pkgUrl = new URL(`${pkg}.tgz`, normalizedRepoPath).href;
         try {
           const res = await fetch(pkgUrl);
           if (res.ok) {
