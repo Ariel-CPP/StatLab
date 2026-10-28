@@ -281,7 +281,7 @@ export function buildSessionPdfDocDefinition(sessionState, options = {}) {
 
     if (interpText) {
       content.push({
-        text: isEn ? "Statistical Interpretation:" : "Interpretasi Statistik:",
+        text: isEn ? "Key Points (Statistical Interpretation):" : "Poin Kunci (Key Points):",
         style: "interpretationHeading"
       });
 
@@ -300,7 +300,7 @@ export function buildSessionPdfDocDefinition(sessionState, options = {}) {
 
   // --- 3. Cumulative General Conclusion Section ---
   content.push({
-    text: isEn ? "General Conclusion" : "Kesimpulan Umum",
+    text: isEn ? "Key Points (General Findings)" : "Poin Kunci (Kesimpulan Umum)",
     style: "conclusionHeading",
     pageBreak: items.length > 1 ? "before" : undefined
   });

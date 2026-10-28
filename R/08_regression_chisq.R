@@ -167,7 +167,7 @@ sl_analyze_regression <- function(df, opts = list()) {
   )
 
   # =========================================================================
-  # Plots (Scatter plot with trendline)
+  # Plots (Show All Regression Diagnostics)
   # =========================================================================
   plots <- list()
   if (include_plots) {
@@ -195,39 +195,92 @@ sl_analyze_regression <- function(df, opts = list()) {
 
     plots[[1L]] <- list(
       id = "regression_scatter",
-      title = list(id = "Diagram Pencar Data & Garis Tren Regresi", en = "Data Scatter Plot & Regression Trendline"),
+      title = list(id = "1. Diagram Pencar Data & Garis Tren Regresi", en = "1. Data Scatter Plot & Regression Trendline"),
       png_data_url = p_scat$png_data_url,
       width_in = p_scat$width_in,
       height_in = p_scat$height_in
     )
+
+    # Plot 2: Residuals vs Fitted
+    p_resid <- sl_capture_plot(function() {
+      graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+      graphics::plot(
+        fitted_vals, resids, pch = 19, col = "#1B365D", cex = 1.1,
+        xlab = if (plot_lang == "id") "Nilai Prediksi / Fitted Values (Y^)" else "Fitted Values (Y^)",
+        ylab = if (plot_lang == "id") "Sisaan / Residuals (e)" else "Residuals (e)",
+        main = if (plot_lang == "id") "Plot Sisaan vs Nilai Prediksi (Evaluasi Homoskedastisitas)" else "Residuals vs Fitted (Homoscedasticity Check)",
+        las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
+      )
+      graphics::grid(col = "#E3DDD0", lty = 3)
+      graphics::abline(h = 0, col = "#B83227", lwd = 2, lty = 2)
+    }, width_in = 6.5, height_in = 4.0, res = 300)
+
+    plots[[2L]] <- list(
+      id = "regression_residuals",
+      title = list(id = "2. Plot Sisaan vs Nilai Prediksi", en = "2. Residuals vs Fitted Plot"),
+      png_data_url = p_resid$png_data_url,
+      width_in = p_resid$width_in,
+      height_in = p_resid$height_in
+    )
+
+    # Plot 3: Normal Q-Q Plot of Residuals
+    p_qq <- sl_capture_plot(function() {
+      graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+      stats::qqnorm(resids, pch = 19, col = "#1B365D", cex = 1.1,
+        main = if (plot_lang == "id") "Normal Q-Q Plot Sisaan Regresi" else "Normal Q-Q Plot of Residuals",
+        xlab = if (plot_lang == "id") "Kuantil Teoretis Normal" else "Theoretical Quantiles",
+        ylab = if (plot_lang == "id") "Kuantil Sisaan Sampel" else "Sample Residual Quantiles",
+        las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D")
+      stats::qqline(resids, col = "#B83227", lwd = 2)
+      graphics::grid(col = "#E3DDD0", lty = 3)
+    }, width_in = 6.5, height_in = 4.0, res = 300)
+
+    plots[[3L]] <- list(
+      id = "regression_qq",
+      title = list(id = "3. Normal Q-Q Plot Sisaan Regresi", en = "3. Normal Q-Q Plot of Residuals"),
+      png_data_url = p_qq$png_data_url,
+      width_in = p_qq$width_in,
+      height_in = p_qq$height_in
+    )
   }
 
-  # Interpretation
-  interp_id <- if (p_val < 0.05) {
-    sprintf(
-      "Analisis regresi linier menunjukkan bahwa variabel %s memiliki pengaruh yang signifikan secara statistik terhadap %s (F(%d, %d) = %s, p = %s; R² = %s). Persamaan regresi yang terbentuk adalah Y = %s + %s X. Koefisien korelasi Pearson sebesar r = %s menunjukkan hubungan linier yang kuat.",
-      col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(p_val, "id"),
-      sl_fmt_num(r_squared, 3L, "id"), sl_fmt_num(b0, 3L, "id"), sl_fmt_num(b1, 3L, "id"), sl_fmt_num(pearson_cor, 3L, "id")
-    )
-  } else {
-    sprintf(
-      "Analisis regresi linier menunjukkan bahwa variabel %s tidak berpengaruh signifikan terhadap %s (F(%d, %d) = %s, p = %s; R² = %s).",
-      col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(p_val, "id"), sl_fmt_num(r_squared, 3L, "id")
-    )
-  }
+  # Key Points Formatting
+  pts_id <- c(
+    if (p_val < alpha) {
+      sprintf("• **Signifikansi Pengaruh**: Variabel %s berpengaruh sangat nyata secara statistik terhadap %s (F(%d, %d) = %s, p = %s; R² = %s).",
+        col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(p_val, "id"), sl_fmt_num(r_squared, 3L, "id"))
+    } else {
+      sprintf("• **Signifikansi Pengaruh**: Variabel %s tidak berpengaruh signifikan terhadap %s (F(%d, %d) = %s, p = %s; R² = %s).",
+        col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(p_val, "id"), sl_fmt_num(r_squared, 3L, "id"))
+    },
+    sprintf("• **Persamaan Garis Regresi**: Y = %s + %s X (lereng b1 = %s, t = %s, p = %s).",
+      sl_fmt_num(b0, 3L, "id"), sl_fmt_num(b1, 3L, "id"), sl_fmt_num(b1, 3L, "id"), sl_fmt_num(t_b1, 3L, "id"), sl_fmt_p(p_b1, "id")),
+    sprintf("• **Kekuatan Korelasi**: Koefisien korelasi Pearson r = %s (Spearman ρ = %s), menunjukkan asosiasi linier yang %s.",
+      sl_fmt_num(pearson_cor, 3L, "id"), sl_fmt_num(spearman_cor, 3L, "id"),
+      if (abs(pearson_cor) >= 0.7) "sangat kuat" else if (abs(pearson_cor) >= 0.4) "sedang" else "lemah"),
+    sprintf("• **Diagnostik Asumsi Galat**: Uji Durbin-Watson = %s (otokorelasi); normalitas sisaan Shapiro-Wilk p = %s (%s).",
+      sl_fmt_num(dw_stat, 2L, "id"), sl_fmt_p(sw_res$p_value, "id"),
+      if (sw_res$valid && sw_res$p_value >= alpha) "sisaan normal" else "terindikasi deviasi normalitas")
+  )
+  interp_id <- paste(pts_id, collapse = "\n")
 
-  interp_en <- if (p_val < 0.05) {
-    sprintf(
-      "Linear regression analysis revealed a statistically significant relationship where %s significantly predicted %s, F(%d, %d) = %s, p = %s, R² = %s. The fitted model equation is Y = %s + %s X. The Pearson correlation coefficient r = %s indicates strong linear association.",
-      col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(p_val, "en"),
-      sl_fmt_num(r_squared, 3L, "en"), sl_fmt_num(b0, 3L, "en"), sl_fmt_num(b1, 3L, "en"), sl_fmt_num(pearson_cor, 3L, "en")
-    )
-  } else {
-    sprintf(
-      "Linear regression analysis indicated that %s did not have a statistically significant predictive effect on %s, F(%d, %d) = %s, p = %s, R² = %s.",
-      col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(p_val, "en"), sl_fmt_num(r_squared, 3L, "en")
-    )
-  }
+  pts_en <- c(
+    if (p_val < alpha) {
+      sprintf("• **Significant Effect**: %s significantly predicted %s, F(%d, %d) = %s, p = %s, R² = %s.",
+        col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(p_val, "en"), sl_fmt_num(r_squared, 3L, "en"))
+    } else {
+      sprintf("• **Non-Significant Effect**: %s did not significantly predict %s, F(%d, %d) = %s, p = %s, R² = %s.",
+        col_x, col_y, df_reg, df_res, sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(p_val, "en"), sl_fmt_num(r_squared, 3L, "en"))
+    },
+    sprintf("• **Fitted Line Equation**: Y = %s + %s X (slope b1 = %s, t = %s, p = %s).",
+      sl_fmt_num(b0, 3L, "en"), sl_fmt_num(b1, 3L, "en"), sl_fmt_num(b1, 3L, "en"), sl_fmt_num(t_b1, 3L, "en"), sl_fmt_p(p_b1, "en")),
+    sprintf("• **Correlation Strength**: Pearson r = %s (Spearman ρ = %s), indicating %s linear association.",
+      sl_fmt_num(pearson_cor, 3L, "en"), sl_fmt_num(spearman_cor, 3L, "en"),
+      if (abs(pearson_cor) >= 0.7) "strong" else if (abs(pearson_cor) >= 0.4) "moderate" else "weak"),
+    sprintf("• **Residual Diagnostics**: Durbin-Watson statistic = %s; Shapiro-Wilk residual normality p = %s.",
+      sl_fmt_num(dw_stat, 2L, "en"), sl_fmt_p(sw_res$p_value, "en"))
+  )
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "regression",
@@ -837,40 +890,123 @@ sl_analyze_curve_estimation <- function(df, opts = list()) {
   }
 
   # =========================================================================
-  # 300-DPI Publication Base Graphics Plot
+  # 300-DPI Publication Base Graphics Plots (Show All Regression Curves)
   # =========================================================================
   plots <- list()
   if (include_plots) {
-    p_curve <- sl_capture_plot(function() {
+    x_grid <- seq(min(x), max(x), length.out = 200L)
+
+    # Compute y bounds across all valid models
+    all_y_preds <- lapply(models_fit, function(m) m$predict_fn(x_grid))
+    y_all_min <- min(c(y, unlist(all_y_preds)), na.rm = TRUE)
+    y_all_max <- max(c(y, unlist(all_y_preds)), na.rm = TRUE)
+    y_pad <- (y_all_max - y_all_min) * 0.1
+    y_lim <- c(max(0, y_all_min - y_pad), y_all_max + y_pad)
+
+    # Color & Line Style mapping per model family
+    color_map <- list(
+      quadratic   = "#B83227", # Crimson
+      power       = "#2E7D32", # Forest Green
+      linear      = "#1B365D", # Navy Ink
+      exponential = "#D97706", # Amber Orange
+      logarithmic = "#7C3AED"  # Purple
+    )
+    lty_map <- list(
+      quadratic   = 1L, # solid
+      power       = 4L, # dotdash
+      linear      = 2L, # dashed
+      exponential = 5L, # longdash
+      logarithmic = 3L  # dotted
+    )
+
+    # -----------------------------------------------------------------------
+    # Plot 1: Multi-Curve Comparison Plot (All Candidate Curves Overlaid)
+    # -----------------------------------------------------------------------
+    p_all <- sl_capture_plot(function() {
       graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
-
-      x_grid <- seq(min(x), max(x), length.out = 200L)
-      y_grid <- selected_m$predict_fn(x_grid)
-
-      y_all_min <- min(c(y, y_grid), na.rm = TRUE)
-      y_all_max <- max(c(y, y_grid), na.rm = TRUE)
-      y_pad <- (y_all_max - y_all_min) * 0.1
-      y_lim <- c(max(0, y_all_min - y_pad), y_all_max + y_pad)
 
       graphics::plot(
         x, y, pch = 19, col = "#1B365D", cex = 1.15,
         ylim = y_lim,
+        xlab = if (plot_lang == "id") paste("Variabel Bebas (X):", col_x) else paste("Independent Variable (X):", col_x),
+        ylab = if (plot_lang == "id") paste("Variabel Respon (Y):", col_y) else paste("Response Variable (Y):", col_y),
+        main = if (plot_lang == "id") "1. Perbandingan Seluruh Model Kurva Regresi (All Curves Overlay)" else "1. Multi-Curve Regression Comparison (All Curves Overlay)",
+        las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
+      )
+      graphics::grid(col = "#E3DDD0", lty = 3)
+
+      # Draw all candidate curves
+      leg_labels <- c(if (plot_lang == "id") "Data Aktual" else "Observed Data")
+      leg_cols <- c("#1B365D")
+      leg_ltys <- c(NA)
+      leg_lwds <- c(NA)
+      leg_pchs <- c(19)
+
+      for (mk in names(models_fit)) {
+        m <- models_fit[[mk]]
+        col_m <- if (!is.null(color_map[[mk]])) color_map[[mk]] else "#4B5563"
+        lty_m <- if (!is.null(lty_map[[mk]])) lty_map[[mk]] else 1L
+        lwd_m <- if (mk == best_key) 2.8 else 1.8
+        y_m <- m$predict_fn(x_grid)
+
+        graphics::lines(x_grid, y_m, col = col_m, lty = lty_m, lwd = lwd_m)
+
+        lbl <- sprintf("%s%s (R² = %s)",
+          if (mk == best_key) "★ " else "",
+          if (plot_lang == "id") m$name_id else m$name_en,
+          sl_fmt_num(m$r2, 3L, plot_lang))
+
+        leg_labels <- c(leg_labels, lbl)
+        leg_cols <- c(leg_cols, col_m)
+        leg_ltys <- c(leg_ltys, lty_m)
+        leg_lwds <- c(leg_lwds, lwd_m)
+        leg_pchs <- c(leg_pchs, NA)
+      }
+
+      graphics::legend("topleft", legend = leg_labels, col = leg_cols, lty = leg_ltys,
+        lwd = leg_lwds, pch = leg_pchs, bty = "n", cex = 0.85, bg = "#FFFDF8E6")
+    }, width_in = 6.8, height_in = 4.5, res = 300)
+
+    plots[[1L]] <- list(
+      id = "curve_all_comparison",
+      title = list(id = "1. Perbandingan Seluruh Kurva Regresi (Multi-Curve Overlay)",
+                   en = "1. All Regression Curves Comparison (Multi-Curve Overlay)"),
+      png_data_url = p_all$png_data_url,
+      width_in = p_all$width_in,
+      height_in = p_all$height_in
+    )
+
+    # -----------------------------------------------------------------------
+    # Plot 2: Best / Selected Fitted Model with Detail & Annotations
+    # -----------------------------------------------------------------------
+    p_best <- sl_capture_plot(function() {
+      graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+
+      y_sel <- selected_m$predict_fn(x_grid)
+      y_min_b <- min(c(y, y_sel), na.rm = TRUE)
+      y_max_b <- max(c(y, y_sel), na.rm = TRUE)
+      y_pad_b <- (y_max_b - y_min_b) * 0.1
+      y_lim_b <- c(max(0, y_min_b - y_pad_b), y_max_b + y_pad_b)
+
+      graphics::plot(
+        x, y, pch = 19, col = "#1B365D", cex = 1.2,
+        ylim = y_lim_b,
         xlab = if (plot_lang == "id") paste("Variabel Bebas (X):", col_x) else paste("Independent (X):", col_x),
         ylab = if (plot_lang == "id") paste("Variabel Respon (Y):", col_y) else paste("Response (Y):", col_y),
-        main = if (plot_lang == "id") sprintf("Kurva Regresi Terbaik: %s", selected_m$name_id) else sprintf("Fitted Curve: %s", selected_m$name_en),
+        main = if (plot_lang == "id") sprintf("2. Model Terbaik Terpilih: %s", selected_m$name_id) else sprintf("2. Best Selected Model: %s", selected_m$name_en),
         las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
       )
       graphics::grid(col = "#E3DDD0", lty = 3)
 
       # Draw fitted curve
-      graphics::lines(x_grid, y_grid, col = "#B83227", lwd = 2.4)
+      graphics::lines(x_grid, y_sel, col = "#B83227", lwd = 2.6)
 
       # Mark optimum vertex if quadratic
       if (selected_key == "quadratic" && !is.null(selected_m$vertex)) {
         vx <- selected_m$vertex$x_opt
         vy <- selected_m$vertex$y_opt
         if (vx >= min(x) && vx <= max(x)) {
-          graphics::points(vx, vy, pch = 8, col = "#2E7D32", cex = 1.5, lwd = 2)
+          graphics::points(vx, vy, pch = 8, col = "#2E7D32", cex = 1.6, lwd = 2.2)
           graphics::abline(v = vx, lty = 2, col = "#2E7D32")
           graphics::text(vx, vy, labels = sprintf("Optimum (%s, %s)", sl_fmt_num(vx, 2L, plot_lang), sl_fmt_num(vy, 2L, plot_lang)),
             pos = if (selected_m$vertex$nature == "maximum") 3 else 1, col = "#2E7D32", cex = 0.85, font = 2)
@@ -879,50 +1015,127 @@ sl_analyze_curve_estimation <- function(df, opts = list()) {
 
       legend_text <- c(
         if (plot_lang == "id") "Data Aktual" else "Actual Observations",
-        sprintf("%s (R² = %s)", selected_m$name_id, sl_fmt_num(selected_m$r2, 3L, plot_lang))
+        sprintf("%s (%s)", selected_m$formula_txt, sprintf("R² = %s", sl_fmt_num(selected_m$r2, 3L, plot_lang)))
       )
       graphics::legend("topleft", legend = legend_text, pch = c(19, NA), lty = c(NA, 1),
-        col = c("#1B365D", "#B83227"), lwd = c(NA, 2.4), bty = "n", cex = 0.9)
+        col = c("#1B365D", "#B83227"), lwd = c(NA, 2.6), bty = "n", cex = 0.9)
     }, width_in = 6.5, height_in = 4.4, res = 300)
 
-    plots[[1L]] <- list(
-      id = "curve_fitted_plot",
-      title = list(id = sprintf("Kurva Hubungan %s vs %s (%s)", col_x, col_y, selected_m$name_id),
-                   en = sprintf("Fitted Curve: %s vs %s (%s)", col_x, col_y, selected_m$name_en)),
-      png_data_url = p_curve$png_data_url,
-      width_in = p_curve$width_in,
-      height_in = p_curve$height_in
+    plots[[2L]] <- list(
+      id = "curve_best_model",
+      title = list(id = sprintf("2. Kurva Model Terpilih (%s)", selected_m$name_id),
+                   en = sprintf("2. Selected Model Curve (%s)", selected_m$name_en)),
+      png_data_url = p_best$png_data_url,
+      width_in = p_best$width_in,
+      height_in = p_best$height_in
     )
+
+    # -----------------------------------------------------------------------
+    # Plot 3+: Individual Plots for each candidate model
+    # -----------------------------------------------------------------------
+    p_idx <- 3L
+    for (mk in names(models_fit)) {
+      if (mk == selected_key) next # Already shown in Plot 2
+      m_cur <- models_fit[[mk]]
+      col_cur <- if (!is.null(color_map[[mk]])) color_map[[mk]] else "#4B5563"
+      lty_cur <- if (!is.null(lty_map[[mk]])) lty_map[[mk]] else 1L
+
+      p_indiv <- sl_capture_plot(function() {
+        graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+        y_indiv <- m_cur$predict_fn(x_grid)
+        y_min_i <- min(c(y, y_indiv), na.rm = TRUE)
+        y_max_i <- max(c(y, y_indiv), na.rm = TRUE)
+        y_pad_i <- (y_max_i - y_min_i) * 0.1
+        y_lim_i <- c(max(0, y_min_i - y_pad_i), y_max_i + y_pad_i)
+
+        graphics::plot(
+          x, y, pch = 19, col = "#1B365D", cex = 1.15,
+          ylim = y_lim_i,
+          xlab = if (plot_lang == "id") paste("Variabel Bebas (X):", col_x) else paste("Independent (X):", col_x),
+          ylab = if (plot_lang == "id") paste("Variabel Respon (Y):", col_y) else paste("Response (Y):", col_y),
+          main = sprintf("%d. Kurva %s: %s vs %s", p_idx, if (plot_lang == "id") m_cur$name_id else m_cur$name_en, col_x, col_y),
+          las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
+        )
+        graphics::grid(col = "#E3DDD0", lty = 3)
+        graphics::lines(x_grid, y_indiv, col = col_cur, lty = lty_cur, lwd = 2.4)
+
+        if (mk == "quadratic" && !is.null(m_cur$vertex)) {
+          vx <- m_cur$vertex$x_opt
+          vy <- m_cur$vertex$y_opt
+          if (vx >= min(x) && vx <= max(x)) {
+            graphics::points(vx, vy, pch = 8, col = "#2E7D32", cex = 1.5, lwd = 2.0)
+            graphics::abline(v = vx, lty = 2, col = "#2E7D32")
+          }
+        }
+
+        leg_text <- c(
+          if (plot_lang == "id") "Data Pengamatan" else "Observed Data",
+          sprintf("%s (R² = %s, p = %s)", m_cur$formula_txt, sl_fmt_num(m_cur$r2, 3L, plot_lang), sl_fmt_p(m_cur$p_val, plot_lang))
+        )
+        graphics::legend("topleft", legend = leg_text, pch = c(19, NA), lty = c(NA, lty_cur),
+          col = c("#1B365D", col_cur), lwd = c(NA, 2.4), bty = "n", cex = 0.85)
+      }, width_in = 6.5, height_in = 4.2, res = 300)
+
+      plots[[p_idx]] <- list(
+        id = sprintf("curve_model_%s", mk),
+        title = list(id = sprintf("%d. Kurva Model %s", p_idx, m_cur$name_id),
+                     en = sprintf("%d. %s Curve Model", p_idx, m_cur$name_en)),
+        png_data_url = p_indiv$png_data_url,
+        width_in = p_indiv$width_in,
+        height_in = p_indiv$height_in
+      )
+      p_idx <- p_idx + 1L
+    }
   }
 
   # =========================================================================
-  # Interpretation
+  # Key Points Formatting (Poin Kunci / Key Points)
   # =========================================================================
-  interp_id <- sprintf(
-    "Hasil analisis estimasi kurva menunjukkan bahwa model **%s** merupakan model dengan kesesuaian terbaik (R² = %s, Adj-R² = %s, AIC = %s; F = %s, p = %s). Persamaan kurva yang terbentuk adalah %s. Model ini berhasil menjelaskan %s%% variasi pada data respon.",
-    selected_m$name_id, sl_fmt_num(selected_m$r2, 4L, "id"), sl_fmt_num(selected_m$adj_r2, 4L, "id"),
-    sl_fmt_num(selected_m$aic, 2L, "id"), sl_fmt_num(selected_m$f_val, 3L, "id"), sl_fmt_p(selected_m$p_val, "id"),
-    selected_m$formula_txt, sl_fmt_num(selected_m$r2 * 100, 2L, "id")
+  pts_id <- c(
+    sprintf("• **Model Terbaik Terpilih**: Model **%s** memberikan kebaikan suai (goodness-of-fit) tertinggi (R² = %s, Adj-R² = %s, AIC = %s; F = %s, p = %s).",
+      selected_m$name_id, sl_fmt_num(selected_m$r2, 4L, "id"), sl_fmt_num(selected_m$adj_r2, 4L, "id"),
+      sl_fmt_num(selected_m$aic, 2L, "id"), sl_fmt_num(selected_m$f_val, 3L, "id"), sl_fmt_p(selected_m$p_val, "id")),
+    sprintf("• **Persamaan Matematis**: %s, berhasil menjelaskan %s%% dari total variasi respon pengamatan.",
+      selected_m$formula_txt, sl_fmt_num(selected_m$r2 * 100, 2L, "id"))
   )
-
-  interp_en <- sprintf(
-    "Curve estimation analysis indicated that the **%s** model provided the best fit to the data (R² = %s, Adj-R² = %s, AIC = %s; F = %s, p = %s). The fitted equation is %s, accounting for %s%% of the total response variation.",
-    selected_m$name_en, sl_fmt_num(selected_m$r2, 4L, "en"), sl_fmt_num(selected_m$adj_r2, 4L, "en"),
-    sl_fmt_num(selected_m$aic, 2L, "en"), sl_fmt_num(selected_m$f_val, 3L, "en"), sl_fmt_p(selected_m$p_val, "en"),
-    selected_m$formula_txt, sl_fmt_num(selected_m$r2 * 100, 2L, "en")
-  )
-
   if (!is.null(selected_m$vertex) && selected_m$vertex$nature == "maximum") {
-    interp_id <- paste(interp_id, sprintf("Titik puncak optimum tercapai pada %s = %s dengan estimasi respon maksimum %s = %s.",
+    pts_id <- c(pts_id, sprintf("• **Titik Puncak Optimum**: Respon optimal tercapai pada %s = %s dengan estimasi respon maksimum %s = %s.",
       col_x, sl_fmt_num(selected_m$vertex$x_opt, 2L, "id"), col_y, sl_fmt_num(selected_m$vertex$y_opt, 2L, "id")))
-    interp_en <- paste(interp_en, sprintf("The optimum peak is reached at %s = %s yielding a maximum expected response of %s = %s.",
-      col_x, sl_fmt_num(selected_m$vertex$x_opt, 2L, "en"), col_y, sl_fmt_num(selected_m$vertex$y_opt, 2L, "en")))
-  } else if (!is.null(selected_m$allometric)) {
-    interp_id <- paste(interp_id, sprintf("Uji alometrik menghasilkan koefisien b = %s (%s, p = %s).",
+  } else if (!is.null(selected_m$vertex)) {
+    pts_id <- c(pts_id, sprintf("• **Titik Lembah Minimum**: Respon terendah terjadi pada %s = %s dengan estimasi respon %s = %s.",
+      col_x, sl_fmt_num(selected_m$vertex$x_opt, 2L, "id"), col_y, sl_fmt_num(selected_m$vertex$y_opt, 2L, "id")))
+  }
+  if (!is.null(selected_m$allometric)) {
+    pts_id <- c(pts_id, sprintf("• **Sifat Pertumbuhan Alometrik**: Koefisien b = %s (%s, uji t terhadap b=3 menghasilkan p = %s).",
       sl_fmt_num(selected_m$allometric$b, 3L, "id"), selected_m$allometric$pattern$id, sl_fmt_p(selected_m$allometric$p_value, "id")))
-    interp_en <- paste(interp_en, sprintf("The allometric test yielded exponent b = %s (%s, p = %s).",
+  }
+  pts_id <- c(pts_id, sprintf("• **Signifikansi Statistik**: Hubungan kurvalinier antara %s dan %s terbukti nyata secara statistik pada taraf nyata α = %s.",
+    col_x, col_y, sl_fmt_num(alpha, 2L, "id")))
+
+  interp_id <- paste(pts_id, collapse = "\n")
+
+  pts_en <- c(
+    sprintf("• **Best Fit Model**: The **%s** model provided the highest goodness-of-fit (R² = %s, Adj-R² = %s, AIC = %s; F = %s, p = %s).",
+      selected_m$name_en, sl_fmt_num(selected_m$r2, 4L, "en"), sl_fmt_num(selected_m$adj_r2, 4L, "en"),
+      sl_fmt_num(selected_m$aic, 2L, "en"), sl_fmt_num(selected_m$f_val, 3L, "en"), sl_fmt_p(selected_m$p_val, "en")),
+    sprintf("• **Fitted Equation**: %s, accounting for %s%% of the total response variation.",
+      selected_m$formula_txt, sl_fmt_num(selected_m$r2 * 100, 2L, "en"))
+  )
+  if (!is.null(selected_m$vertex) && selected_m$vertex$nature == "maximum") {
+    pts_en <- c(pts_en, sprintf("• **Optimum Peak**: Maximum response is reached at %s = %s yielding %s = %s.",
+      col_x, sl_fmt_num(selected_m$vertex$x_opt, 2L, "en"), col_y, sl_fmt_num(selected_m$vertex$y_opt, 2L, "en")))
+  } else if (!is.null(selected_m$vertex)) {
+    pts_en <- c(pts_en, sprintf("• **Minimum Point**: Lowest response occurs at %s = %s yielding %s = %s.",
+      col_x, sl_fmt_num(selected_m$vertex$x_opt, 2L, "en"), col_y, sl_fmt_num(selected_m$vertex$y_opt, 2L, "en")))
+  }
+  if (!is.null(selected_m$allometric)) {
+    pts_en <- c(pts_en, sprintf("• **Allometric Growth**: Exponent b = %s (%s, t-test against b=3 yields p = %s).",
       sl_fmt_num(selected_m$allometric$b, 3L, "en"), selected_m$allometric$pattern$en, sl_fmt_p(selected_m$allometric$p_value, "en")))
   }
+  pts_en <- c(pts_en, sprintf("• **Statistical Significance**: The relationship between %s and %s is statistically significant at α = %s.",
+    col_x, col_y, sl_fmt_num(alpha, 2L, "en")))
+
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "curve_estimation",

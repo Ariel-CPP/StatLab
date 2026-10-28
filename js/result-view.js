@@ -432,14 +432,52 @@ export function renderAnalysisResult(containerEl, result, options = {}) {
   }
 
   // =========================================================================
-  // Section 7: Bilingual Written Interpretation & "Add to Session Report"
+  // Section 7: Key Points (formerly Kesimpulan) & "Add to Session Report"
   // =========================================================================
   const interpText = interpretation[lang] || interpretation.id || interpretation.en || "";
 
+  // Render structured key points list
+  function renderKeyPointsHtml(raw) {
+    if (!raw) return "";
+    const lines = raw
+      .split(/\n+/)
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    let items = [];
+    for (const line of lines) {
+      if (line.startsWith("•") || line.startsWith("-") || line.startsWith("*")) {
+        items.push(line.replace(/^[•\-*]\s*/, ""));
+      } else {
+        const s = line.split(/(?<=[.!?])\s+(?=[A-Z0-9★])/).filter(Boolean);
+        items.push(...s);
+      }
+    }
+    if (items.length === 0) items = [raw];
+
+    return `
+      <ul class="sl-key-points-list">
+        ${items.map(item => {
+          const formatted = escapeHtml(item).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          return `
+            <li class="sl-key-point-item">
+              <span class="sl-key-point-bullet">✦</span>
+              <div class="sl-key-point-content">${formatted}</div>
+            </li>
+          `;
+        }).join("")}
+      </ul>
+    `;
+  }
+
   html += `
     <div class="sl-interpretation-box">
-      <h3 style="margin-top:0;margin-bottom:10px;">${isId ? "Kesimpulan & Interpretasi Biostatistika" : "Biostatistical Interpretation"}</h3>
-      <div class="sl-interpretation-text">${escapeHtml(interpText)}</div>
+      <h3 style="margin-top:0;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span>📌</span> <span>${isId ? "Poin Kunci (Key Points)" : "Key Points"}</span>
+      </h3>
+      <div class="sl-interpretation-text">
+        ${renderKeyPointsHtml(interpText)}
+      </div>
       <div style="margin-top:18px;display:flex;justify-content:flex-start;">
         <button type="button" class="sl-btn sl-btn-primary sl-btn-add-report">
           ${isId ? "+ Tambah ke Laporan Sesi" : "+ Add to Session Report"}

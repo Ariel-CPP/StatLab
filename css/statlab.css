@@ -528,7 +528,7 @@ body.sl-standalone .sl-plot-card img {
   border: 1px solid var(--sl-border);
 }
 
-/* Interpretation & Conclusion Box */
+/* Interpretation & Key Points Box */
 .sl-app .sl-interpretation-box,
 body.sl-standalone .sl-interpretation-box {
   background: var(--sl-surface);
@@ -540,6 +540,45 @@ body.sl-standalone .sl-interpretation-box {
   font-family: var(--sl-font-serif);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.sl-app .sl-key-points-list,
+body.sl-standalone .sl-key-points-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sl-app .sl-key-point-item,
+body.sl-standalone .sl-key-point-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(27, 54, 93, 0.03);
+  border: 1px solid rgba(27, 54, 93, 0.09);
+  border-radius: 4px;
+  padding: 9px 13px;
+  font-family: var(--sl-font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--sl-ink);
+}
+
+.sl-app .sl-key-point-bullet,
+body.sl-standalone .sl-key-point-bullet {
+  color: var(--sl-crimson);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.sl-app .sl-key-point-content,
+body.sl-standalone .sl-key-point-content {
+  flex: 1;
 }
 
 /* Session Report Drawer */

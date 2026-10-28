@@ -2,7 +2,7 @@
 // StatLab Service Worker for Offline PWA Execution
 // Strictly uses relative paths for GitHub Pages subpath compatibility.
 
-const CACHE_NAME = "statlab-cache-v6";
+const CACHE_NAME = "statlab-cache-v7";
 
 const ASSETS_TO_CACHE = [
   "./",

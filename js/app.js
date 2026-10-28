@@ -552,15 +552,15 @@ export async function mountStatLab(rootEl, config = {}) {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <h2>Laporan Sesi Kumulatif</h2>
             <div style="display: flex; gap: 8px;">
-              <button class="sl-btn sl-btn-primary" id="sl-btn-compile-gc">⚗️ Sintesis Kesimpulan Umum (Base R)</button>
+              <button class="sl-btn sl-btn-primary" id="sl-btn-compile-gc">⚗️ Sintesis Poin Kunci Umum (Base R)</button>
               <button class="sl-btn" id="sl-btn-download-pdf">📥 Unduh PDF Vektor</button>
             </div>
           </div>
 
           <div id="sl-gc-box" class="sl-interpretation-box" style="margin-bottom: 24px;">
-            <h3 style="margin-top: 0; color: var(--sl-ink);">Kesimpulan Umum</h3>
+            <h3 style="margin-top: 0; color: var(--sl-ink);">Poin Kunci Umum (Key Points)</h3>
             <p id="sl-gc-text" style="color: var(--sl-ink-subtle); font-style: italic;">
-              Belum ada kesimpulan umum. Klik <strong>Sintesis Kesimpulan Umum</strong> untuk merangkum seluruh analisis di sesi ini secara otomatis melalui Base R.
+              Belum ada poin kunci umum. Klik <strong>Sintesis Poin Kunci Umum</strong> untuk merangkum seluruh temuan analisis di sesi ini secara otomatis melalui Base R.
             </p>
           </div>
 
@@ -890,8 +890,8 @@ export async function mountStatLab(rootEl, config = {}) {
       gcTextEl.style.fontStyle = "italic";
       gcTextEl.style.color = "var(--sl-ink-subtle)";
       gcTextEl.textContent = isEn
-        ? "No general conclusion compiled yet. Click 'Compile General Conclusion' above to synthesize findings across all analyses in Base R."
-        : "Belum ada kesimpulan umum. Klik 'Sintesis Kesimpulan Umum' di atas untuk merangkum seluruh temuan analisis secara otomatis melalui Base R.";
+        ? "No key points compiled yet. Click 'Compile Key Points' above to synthesize findings across all analyses in Base R."
+        : "Belum ada poin kunci umum. Klik 'Sintesis Poin Kunci Umum' di atas untuk merangkum seluruh temuan analisis secara otomatis melalui Base R.";
     }
 
     // Report items list
@@ -1105,15 +1105,15 @@ export async function mountStatLab(rootEl, config = {}) {
 
     btnCompileGc.disabled = true;
     badgeEl.className = "sl-engine-badge sl-computing";
-    badgeEl.innerHTML = "&#9679; Sintesis Kesimpulan (R)...";
+    badgeEl.innerHTML = "&#9679; Sintesis Poin Kunci (R)...";
 
     try {
       const gc = await engine.compileGeneralConclusion(payload, ["id", "en"]);
       store.setGeneralConclusion(gc);
       grid.showToast(
         store.getState().lang === "en"
-          ? "General Conclusion compiled by Base R!"
-          : "Kesimpulan Umum berhasil dikompilasi oleh Base R!",
+          ? "Key Points compiled by Base R!"
+          : "Poin Kunci Umum berhasil dikompilasi oleh Base R!",
         "success"
       );
     } catch (err) {
