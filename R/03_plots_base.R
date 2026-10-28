@@ -281,7 +281,7 @@ sl_plot_qq <- function(x, title, lang = "id", outlier_idx = integer(0)) {
       labels = if (is_en) "No valid observations" else "Tidak ada data valid",
       col = .sl_col_ink, cex = 0.9
     )
-    return(invisible(NULL))
+    return(invisible(list(n = 0L, outlier_mask = logical(0L))))
   }
 
   if (n == 1L) {
@@ -295,7 +295,7 @@ sl_plot_qq <- function(x, title, lang = "id", outlier_idx = integer(0)) {
     graphics::abline(h = vals[1L], col = .sl_col_crimson, lwd = 1.5, lty = 2)
     pt_col <- if (is_out[1L]) .sl_col_crimson else .sl_col_ink
     graphics::points(0, vals[1L], pch = 19, col = pt_col, cex = 1.0)
-    return(invisible(NULL))
+    return(invisible(list(n = 1L, outlier_mask = is_out)))
   }
 
   qq <- stats::qqnorm(vals, plot.it = FALSE)
@@ -347,7 +347,7 @@ sl_plot_qq <- function(x, title, lang = "id", outlier_idx = integer(0)) {
       lwd = 1.3
     )
   }
-  invisible(NULL)
+  invisible(list(n = n, outlier_mask = is_out))
 }
 
 #' Histogram with Kernel Density & Theoretical Normal Curve in Lab Notebook style
@@ -375,7 +375,7 @@ sl_plot_hist_density <- function(x, title, xlab, lang = "id") {
       labels = if (is_en) "No valid observations" else "Tidak ada data valid",
       col = .sl_col_ink, cex = 0.9
     )
-    return(invisible(NULL))
+    return(invisible(list(n = 0L, subtitle = NA_character_)))
   }
 
   if (n == 1L || max(vals) == min(vals)) {
@@ -397,11 +397,17 @@ sl_plot_hist_density <- function(x, title, xlab, lang = "id") {
     )
     graphics::grid(col = .sl_col_grid, lty = "dotted")
     graphics::abline(v = v0, col = .sl_col_crimson, lwd = 1.8, lty = 2)
+    sub_lbl <- if (n == 1L) {
+      if (is_en) "n = 1 (single observation)" else "n = 1 (observasi tunggal)"
+    } else {
+      if (is_en) "SD = 0 (constant)" else "SD = 0 (konstan)"
+    }
+    sub_col <- if (n == 1L) .sl_col_ink else .sl_col_crimson
     graphics::mtext(
-      if (is_en) "SD = 0 (constant)" else "SD = 0 (konstan)",
-      side = 3, line = 0.15, cex = 0.72, col = .sl_col_crimson
+      sub_lbl,
+      side = 3, line = 0.15, cex = 0.72, col = sub_col
     )
-    return(invisible(NULL))
+    return(invisible(list(n = n, subtitle = sub_lbl)))
   }
 
   ylab <- if (is_en) "Density" else "Kerapatan"
@@ -468,7 +474,62 @@ sl_plot_hist_density <- function(x, title, xlab, lang = "id") {
     cex = 0.74,
     text.col = .sl_col_ink
   )
-  invisible(NULL)
+  invisible(list(n = n, subtitle = NA_character_))
+}
+
+#' Resolve a logical outlier mask across observations, respecting `(group, source_row)` pairs
+#'
+#' In wide mode, every column uses 1-based row indices `1..n_j`, so matching `source_rows`
+#' alone across columns would falsely flag non-outlier points in other groups at the same
+#' row index. When `outlier_groups` is provided (or `outlier_mask` directly), matching is
+#' strictly scoped to `(group, source_row)` pairs.
+#'
+#' @param groups Factor or character vector of group memberships matching `source_rows`
+#' @param source_rows Integer vector of 1-based row indices
+#' @param outlier_rows Integer vector of flagged 1-based row indices
+#' @param outlier_groups Optional character/factor vector of group names paired with `outlier_rows`
+#' @param outlier_mask Optional precomputed logical vector matching `source_rows`
+#' @return Logical vector of length `length(source_rows)`
+sl_match_outlier_mask <- function(
+  groups,
+  source_rows,
+  outlier_rows = integer(0),
+  outlier_groups = NULL,
+  outlier_mask = NULL
+) {
+  n <- length(source_rows)
+  if (n == 0L) {
+    return(logical(0L))
+  }
+  if (!is.null(outlier_mask)) {
+    if (length(outlier_mask) != n) {
+      stop("`outlier_mask` must have the same length as `source_rows`.")
+    }
+    return(!is.na(outlier_mask) & as.logical(outlier_mask))
+  }
+  if (is.null(outlier_rows) || length(outlier_rows) == 0L) {
+    return(rep(FALSE, n))
+  }
+  if (!is.null(outlier_groups)) {
+    if (length(groups) != n) {
+      stop("`groups` and `source_rows` must have the same length.")
+    }
+    if (length(outlier_groups) != length(outlier_rows)) {
+      stop("`outlier_groups` must have the same length as `outlier_rows`.")
+    }
+    g_chr <- as.character(groups)
+    r_int <- as.integer(source_rows)
+    og_chr <- as.character(outlier_groups)
+    or_int <- as.integer(outlier_rows)
+    mask <- rep(FALSE, n)
+    valid_p <- which(!is.na(og_chr) & !is.na(or_int))
+    for (p in valid_p) {
+      mask <- mask | (!is.na(g_chr) & g_chr == og_chr[p] & !is.na(r_int) & r_int == or_int[p])
+    }
+    return(mask)
+  }
+  out_set <- as.integer(outlier_rows[!is.na(outlier_rows)])
+  !is.na(source_rows) & (as.integer(source_rows) %in% out_set)
 }
 
 #' Boxplot with Deterministic Jittered Observations & Crimson Outlier Highlights
@@ -480,6 +541,8 @@ sl_plot_hist_density <- function(x, title, xlab, lang = "id") {
 #' @param lang `"id"` or `"en"`
 #' @param outlier_rows Optional integer vector of flagged 1-based `source_rows`
 #' @param source_rows Integer vector of 1-based original row indices matching `values`
+#' @param outlier_groups Optional character vector of group names paired 1-to-1 with `outlier_rows`
+#' @param outlier_mask Optional logical vector of length `length(values)` overriding row matching
 sl_plot_box_jitter <- function(
   values,
   groups,
@@ -487,7 +550,9 @@ sl_plot_box_jitter <- function(
   ylab,
   lang = "id",
   outlier_rows = integer(0),
-  source_rows = seq_along(values)
+  source_rows = seq_along(values),
+  outlier_groups = NULL,
+  outlier_mask = NULL
 ) {
   is_en <- .sl_is_en(lang)
   .sl_apply_plot_theme()
@@ -503,6 +568,14 @@ sl_plot_box_jitter <- function(
     groups <- factor(rep(if (is_en) "All" else "Semua", n_raw))
   }
 
+  full_out_mask <- sl_match_outlier_mask(
+    groups = groups,
+    source_rows = source_rows,
+    outlier_rows = outlier_rows,
+    outlier_groups = outlier_groups,
+    outlier_mask = outlier_mask
+  )
+
   ok <- is.finite(y_raw) & !is.na(groups)
   vals <- y_raw[ok]
   rows_ok <- source_rows[ok]
@@ -517,7 +590,11 @@ sl_plot_box_jitter <- function(
       labels = if (is_en) "No valid observations" else "Tidak ada data valid",
       col = .sl_col_ink, cex = 0.9
     )
-    return(invisible(NULL))
+    return(invisible(list(
+      outlier_mask = logical(0L),
+      groups = character(0L),
+      source_rows = integer(0L)
+    )))
   }
 
   if (is.factor(groups)) {
@@ -531,13 +608,7 @@ sl_plot_box_jitter <- function(
   lvls <- levels(grp_fac)
   k <- length(lvls)
   y_lim <- .sl_safe_ylim(vals, pad_frac = 0.10)
-
-  out_set <- if (is.null(outlier_rows) || length(outlier_rows) == 0L) {
-    integer(0L)
-  } else {
-    as.integer(outlier_rows[!is.na(outlier_rows)])
-  }
-  is_out <- rows_ok %in% out_set
+  is_out <- full_out_mask[ok]
 
   graphics::boxplot(
     vals ~ grp_fac,
@@ -639,5 +710,9 @@ sl_plot_box_jitter <- function(
     }
   }
 
-  invisible(NULL)
+  invisible(list(
+    outlier_mask = is_out,
+    groups = as.character(grp_fac),
+    source_rows = rows_ok
+  ))
 }

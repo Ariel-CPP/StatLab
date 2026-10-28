@@ -757,9 +757,32 @@
   )
 }
 
+.sl_flagged_outlier_mask <- function(prep, outliers) {
+  n_obs <- length(prep$values)
+  if (n_obs == 0L) {
+    return(logical(0L))
+  }
+  fl <- if (!is.null(outliers) && is.data.frame(outliers$flagged)) {
+    outliers$flagged
+  } else {
+    NULL
+  }
+  if (is.null(fl) || nrow(fl) == 0L) {
+    return(rep(FALSE, n_obs))
+  }
+  sl_match_outlier_mask(
+    groups = prep$groups,
+    source_rows = prep$source_rows,
+    outlier_rows = fl$source_row,
+    outlier_groups = fl$group
+  )
+}
+
 .sl_build_descriptive_plots <- function(prep, outliers, grp_levels, resp_label, lang = "id") {
   k <- length(grp_levels)
+  flagged_mask <- .sl_flagged_outlier_mask(prep, outliers)
   flagged_rows <- if (!is.null(outliers$flagged)) outliers$flagged$source_row else integer(0L)
+  flagged_groups <- if (!is.null(outliers$flagged)) outliers$flagged$group else character(0L)
   g_chr <- as.character(prep$groups)
 
   if (k <= 1L) {
@@ -789,7 +812,7 @@
   # 1. Q-Q Plot
   qq_cap <- sl_capture_plot(function() {
     if (k <= 1L) {
-      out_idx <- which(prep$source_rows %in% flagged_rows)
+      out_idx <- which(flagged_mask)
       t_str <- if (is_en) {
         sprintf("Normal Q-Q Plot (%s)", resp_label)
       } else {
@@ -800,7 +823,7 @@
       graphics::par(mfrow = mf_grid)
       for (g_nm in grp_levels) {
         idx_g <- which(g_chr == g_nm)
-        out_idx_g <- which(prep$source_rows[idx_g] %in% flagged_rows)
+        out_idx_g <- which(flagged_mask[idx_g])
         sl_plot_qq(
           prep$values[idx_g],
           title = paste0("Q-Q: ", g_nm),
@@ -817,7 +840,7 @@
         sg <- if (length(xg) >= 2L && max(xg) > min(xg)) stats::sd(xg) else 1.0
         z_pooled[idx_g] <- (xg - mean(xg)) / sg
       }
-      out_idx <- which(prep$source_rows %in% flagged_rows)
+      out_idx <- which(flagged_mask)
       t_str <- if (is_en) "Pooled Standardized Q-Q Plot" else "Plot Q-Q Terstandardisasi Gabungan"
       sl_plot_qq(z_pooled, title = t_str, lang = lang, outlier_idx = out_idx)
     }
@@ -850,7 +873,9 @@
       ylab = resp_label,
       lang = lang,
       outlier_rows = flagged_rows,
-      source_rows = prep$source_rows
+      source_rows = prep$source_rows,
+      outlier_groups = flagged_groups,
+      outlier_mask = flagged_mask
     )
   }, width_in = 6.5, height_in = 4.2, res = 300)
 

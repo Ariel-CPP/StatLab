@@ -367,3 +367,146 @@ empty_plot_cap <- sl_capture_plot(function() {
 })
 assert_true(startsWith(empty_plot_cap$png_data_url, "data:image/png;base64,iVBOR"),
             "n=0 empty vectors render informative placeholder plots without error")
+
+# 14. Fix Round 1 regressions:
+# (a) Wide-mode overlapping row indices (outlier at row 1 in ONLY ONE column must NOT flag row 1 of other columns)
+df_wide_row1 <- data.frame(
+  Kontrol     = c(84.5, 85.0, 86.2, 85.8, 84.9, 85.4),
+  Perlakuan_A = c(42.0, 86.1, 88.4, 89.2, 87.5, 88.0),
+  Perlakuan_B = c(90.1, 91.2, 89.8, 90.5, 91.0, 90.3)
+)
+prep_wr1 <- sl_prepare_groups(
+  df_wide_row1,
+  mode = "wide",
+  response_cols = c("Kontrol", "Perlakuan_A", "Perlakuan_B")
+)
+out_wr1 <- sl_detect_outliers(prep_wr1$values, prep_wr1$groups, prep_wr1$source_rows, alpha = 0.05)
+assert_true(
+  nrow(out_wr1$flagged) == 1L &&
+    identical(out_wr1$flagged$group[1], "Perlakuan_A") &&
+    identical(out_wr1$flagged$source_row[1], 1L),
+  "Wide row-1 fixture flags strictly Perlakuan_A row 1"
+)
+
+mask_wr1 <- .sl_flagged_outlier_mask(prep_wr1, out_wr1)
+assert_true(
+  is.logical(mask_wr1) &&
+    length(mask_wr1) == length(prep_wr1$values) &&
+    sum(mask_wr1) == 1L &&
+    identical(as.character(prep_wr1$groups[mask_wr1]), "Perlakuan_A") &&
+    identical(prep_wr1$source_rows[mask_wr1], 1L) &&
+    !any(mask_wr1[prep_wr1$groups %in% c("Kontrol", "Perlakuan_B")]),
+  "Wide-mode outlier mask matches (group, source_row) pair without bleeding into Kontrol/Perlakuan_B row 1"
+)
+
+# Verify actual rendered box-jitter graphics stream draws '#1' once (only for Perlakuan_A), not 3 times
+tmp_pdf_box <- tempfile(fileext = ".pdf")
+grDevices::pdf(tmp_pdf_box, width = 6.5, height = 4.2, compress = FALSE)
+box_meta <- sl_plot_box_jitter(
+  values = prep_wr1$values,
+  groups = prep_wr1$groups,
+  title = "Wide Row-1 Outlier Check",
+  ylab = "SR (%)",
+  lang = "en",
+  outlier_rows = out_wr1$flagged$source_row,
+  source_rows = prep_wr1$source_rows,
+  outlier_groups = out_wr1$flagged$group
+)
+grDevices::dev.off()
+pdf_box_lines <- grep("Tj|TJ", readLines(tmp_pdf_box, warn = FALSE), useBytes = TRUE, value = TRUE)
+pdf_box_txt <- paste(pdf_box_lines, collapse = "\n")
+if (file.exists(tmp_pdf_box)) unlink(tmp_pdf_box)
+
+hash1_hits <- gregexpr("(#1)", pdf_box_txt, fixed = TRUE, useBytes = TRUE)[[1]]
+hash1_count <- if (identical(hash1_hits[1], -1L)) 0L else length(hash1_hits)
+assert_true(
+  !is.null(box_meta) &&
+    sum(box_meta$outlier_mask) == 1L &&
+    identical(box_meta$groups[box_meta$outlier_mask], "Perlakuan_A") &&
+    identical(hash1_count, 1L),
+  "sl_plot_box_jitter renders crimson '#1' label strictly once (for Perlakuan_A only)"
+)
+
+# Verify per-group Q-Q panels in wide mode only mark Perlakuan_A (0 outliers in Kontrol & Perlakuan_B)
+tmp_pdf_qq <- tempfile(fileext = ".pdf")
+grDevices::pdf(tmp_pdf_qq, width = 7.5, height = 3.6, compress = FALSE)
+graphics::par(mfrow = c(1L, 3L))
+qq_counts <- integer(3L)
+g_chr_wr1 <- as.character(prep_wr1$groups)
+lvls_wr1 <- levels(prep_wr1$groups)
+for (j in seq_along(lvls_wr1)) {
+  idx_j <- which(g_chr_wr1 == lvls_wr1[j])
+  qq_meta_j <- sl_plot_qq(
+    prep_wr1$values[idx_j],
+    title = paste0("Q-Q: ", lvls_wr1[j]),
+    lang = "en",
+    outlier_idx = which(mask_wr1[idx_j])
+  )
+  qq_counts[j] <- sum(qq_meta_j$outlier_mask)
+}
+grDevices::dev.off()
+if (file.exists(tmp_pdf_qq)) unlink(tmp_pdf_qq)
+assert_true(
+  identical(qq_counts, c(0L, 1L, 0L)),
+  "Wide-mode Q-Q panels flag 0 outliers in Kontrol, 1 in Perlakuan_A, 0 in Perlakuan_B"
+)
+
+# Full end-to-end sl_dispatch on 7 wide columns (>6 pooled Q-Q branch) with row-1 outlier in Kolam_2 only
+wide_7col <- list(
+  Kolam_1 = c(80.1, 80.5, 81.0, 80.8, 80.4, 80.7),
+  Kolam_2 = c(35.0, 80.4, 80.9, 81.1, 80.6, 80.8),
+  Kolam_3 = c(81.0, 81.3, 80.9, 81.2, 81.5, 81.1),
+  Kolam_4 = c(79.8, 80.2, 80.0, 79.9, 80.3, 80.1),
+  Kolam_5 = c(82.0, 82.4, 81.9, 82.2, 82.1, 82.3),
+  Kolam_6 = c(80.5, 80.9, 80.7, 80.6, 81.0, 80.8),
+  Kolam_7 = c(81.2, 81.6, 81.4, 81.3, 81.7, 81.5)
+)
+res_w7 <- jsonlite::fromJSON(sl_dispatch("run_analysis", list(
+  analysis_type = "descriptive",
+  data = wide_7col,
+  roles = list(mode = "wide", response_cols = names(wide_7col)),
+  opts = list(alpha = 0.05, include_plots = TRUE, lang = "id")
+)), simplifyVector = FALSE)
+assert_true(
+  length(res_w7$outliers$flagged) == 1L &&
+    identical(res_w7$outliers$flagged[[1]]$group, "Kolam_2") &&
+    identical(res_w7$outliers$flagged[[1]]$source_row, 1L) &&
+    length(res_w7$plots) == 3L,
+  "7-column wide analysis with row-1 outlier in Kolam_2 completes cleanly with plots"
+)
+
+# (b) sl_plot_hist_density subtitle for n = 1 must NOT claim 'SD = 0 (constant)'
+tmp_pdf_h1 <- tempfile(fileext = ".pdf")
+grDevices::pdf(tmp_pdf_h1, width = 6.5, height = 4.2, compress = FALSE)
+h1_en <- sl_plot_hist_density(c(42.5), title = "Single EN", xlab = "Weight", lang = "en")
+h1_id <- sl_plot_hist_density(c(42.5), title = "Single ID", xlab = "Bobot", lang = "id")
+grDevices::dev.off()
+pdf_h1_lines <- grep("Tj|TJ", readLines(tmp_pdf_h1, warn = FALSE), useBytes = TRUE, value = TRUE)
+pdf_h1_txt <- paste(pdf_h1_lines, collapse = "\n")
+if (file.exists(tmp_pdf_h1)) unlink(tmp_pdf_h1)
+
+assert_true(
+  !grepl("SD = 0", pdf_h1_txt, fixed = TRUE, useBytes = TRUE) &&
+    grepl("n = 1", pdf_h1_txt, fixed = TRUE, useBytes = TRUE) &&
+    !is.null(h1_en) && identical(h1_en$subtitle, "n = 1 (single observation)") &&
+    !is.null(h1_id) && identical(h1_id$subtitle, "n = 1 (observasi tunggal)"),
+  "sl_plot_hist_density labels n=1 as 'n = 1' rather than 'SD = 0'"
+)
+
+tmp_pdf_hc <- tempfile(fileext = ".pdf")
+grDevices::pdf(tmp_pdf_hc, width = 6.5, height = 4.2, compress = FALSE)
+hc_en <- sl_plot_hist_density(c(100, 100, 100), title = "Const EN", xlab = "SR", lang = "en")
+hc_id <- sl_plot_hist_density(c(100, 100, 100), title = "Const ID", xlab = "SR", lang = "id")
+grDevices::dev.off()
+pdf_hc_lines <- grep("Tj|TJ", readLines(tmp_pdf_hc, warn = FALSE), useBytes = TRUE, value = TRUE)
+pdf_hc_txt <- paste(pdf_hc_lines, collapse = "\n")
+if (file.exists(tmp_pdf_hc)) unlink(tmp_pdf_hc)
+
+sd0_hits <- gregexpr("SD = 0", pdf_hc_txt, fixed = TRUE, useBytes = TRUE)[[1]]
+sd0_count <- if (identical(sd0_hits[1], -1L)) 0L else length(sd0_hits)
+assert_true(
+  identical(sd0_count, 2L) &&
+    identical(hc_en$subtitle, "SD = 0 (constant)") &&
+    identical(hc_id$subtitle, "SD = 0 (konstan)"),
+  "sl_plot_hist_density still labels n >= 2 constant vectors as 'SD = 0 (constant)' / 'SD = 0 (konstan)'"
+)
