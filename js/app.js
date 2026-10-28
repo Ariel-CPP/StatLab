@@ -141,7 +141,7 @@ export const ANALYSIS_TEMPLATES = {
       ["43.9", "56.8", "47.9", "50.5"]
     ],
     roles: { mode: "wide", response_cols: ["Kontrol", "Pakan_Artemia", "Pakan_Pelet_A", "Pakan_Pelet_B"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "oneway_anova"
   },
   independent_t: {
     id: "independent_t",
@@ -163,7 +163,7 @@ export const ANALYSIS_TEMPLATES = {
       ["11.9", "15.3"]
     ],
     roles: { mode: "wide", response_cols: ["Kontrol", "Perlakuan_Probiotik"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "independent_t"
   },
   paired_t: {
     id: "paired_t",
@@ -183,7 +183,7 @@ export const ANALYSIS_TEMPLATES = {
       ["10.4", "13.2"]
     ],
     roles: { mode: "wide", response_cols: ["Sebelum_Perlakuan", "Sesudah_Perlakuan"], group_col: null },
-    analysisType: "descriptive"
+    analysisType: "paired_t"
   },
   twoway_anova: {
     id: "twoway_anova",
@@ -497,7 +497,7 @@ export async function mountStatLab(rootEl, config = {}) {
                 <div style="font-size:36px;margin-bottom:12px;">📈</div>
                 <h3 style="margin:0 0 6px 0;color:var(--sl-ink);">Area Laporan Ilmiah Terstandarisasi</h3>
                 <p style="font-size:13px;max-width:520px;margin:0 auto;line-height:1.5;">
-                  Pilih jenis pengujian pada panel kiri atau klik <strong>"Muat Contoh ke Tabel"</strong>, lalu klik tombol <strong>"Jalankan Uji Statistik"</strong> untuk memunculkan analisis asumsi, deteksi pencilan, tabel APA jurnal, rincian SPSS, grafik 300-DPI, dan interpretasi tertulis secara otomatis.
+                  Pilih jenis pengujian pada panel kiri atau klik <strong>"Muat Contoh ke Tabel"</strong>, lalu klik tombol <strong>"Jalankan Uji Statistik"</strong> untuk memunculkan analisis asumsi, deteksi pencilan, tabel sidik ragam ANOVA / uji komparasi, tabel perbandingan rataan & notasi huruf uji lanjut, grafik 300-DPI, dan interpretasi tertulis secara otomatis.
                 </p>
               </div>
             </div>
@@ -951,9 +951,19 @@ export async function mountStatLab(rootEl, config = {}) {
     try {
       const typed = grid.getTypedColumns();
       const state = store.getState();
+      const selectedAnalysis = analysisSelect?.value || "descriptive";
+
+      let analysisToRun = selectedAnalysis;
+      if (selectedAnalysis === "oneway_anova" || selectedAnalysis === "anova") {
+        analysisToRun = "oneway_anova";
+      } else if (selectedAnalysis === "independent_t" || selectedAnalysis === "ttest_indep") {
+        analysisToRun = "independent_t";
+      } else if (selectedAnalysis === "paired_t" || selectedAnalysis === "ttest_paired") {
+        analysisToRun = "paired_t";
+      }
 
       const res = await engine.runAnalysis(
-        "descriptive",
+        analysisToRun,
         typed.columns,
         mapping,
         {

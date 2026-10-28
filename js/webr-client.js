@@ -141,6 +141,8 @@ export class StatLabEngine {
       "03_plots_base.R",
       "04_descriptive.R",
       "05_conclusions.R",
+      "06_anova.R",
+      "07_ttest.R",
       "99_dispatcher.R"
     ];
 

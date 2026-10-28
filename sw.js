@@ -26,6 +26,8 @@ const ASSETS_TO_CACHE = [
   "./R/03_plots_base.R",
   "./R/04_descriptive.R",
   "./R/05_conclusions.R",
+  "./R/06_anova.R",
+  "./R/07_ttest.R",
   "./R/99_dispatcher.R",
   "./vendor/katex/katex.min.css",
   "./vendor/katex/katex.min.js",

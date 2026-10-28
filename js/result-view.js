@@ -344,12 +344,12 @@ export function renderAnalysisResult(containerEl, result, options = {}) {
   }
 
   // =========================================================================
-  // Section 5: Collapsible <details> Layer 2 SPSS Full Tables
+  // Section 5: Collapsible <details> Supplementary Detailed Tables
   // =========================================================================
   if (tablesFull.length > 0) {
     html += `
       <details class="sl-spss-details">
-        <summary>${isId ? "Lampiran Tabel Lengkap Gaya SPSS (Klik untuk Membuka)" : "SPSS-Style Complete Tables (Click to Expand)"}</summary>
+        <summary>${isId ? "Tabel Rincian Tambahan (Klik untuk Buka/Tutup)" : "Supplementary Detailed Tables (Click to Expand)"}</summary>
         <div class="sl-spss-container" style="margin-top:16px;">
     `;
 
@@ -570,7 +570,7 @@ function _attachResultEvents(containerEl, result, options = {}) {
         const headers = tbl.headers[lang] || tbl.headers.id || tbl.headers.en || [];
         const rows = tbl.rows[lang] || tbl.rows.id || tbl.rows.en || [];
         const csv = serializeTableDelimited(headers, rows, lang, "csv");
-        downloadFile(`${tbl.id || 'table'}_spss.csv`, csv);
+        downloadFile(`${tbl.id || 'table'}_detail.csv`, csv);
       }
     };
   }
