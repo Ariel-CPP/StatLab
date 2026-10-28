@@ -82,9 +82,10 @@ assert_true(length(res_km$plots) >= 1L, "Kaplan-Meier survival curve plot genera
 # ---------------------------------------------------------------------------
 # Test 4: PCA & HCA
 # ---------------------------------------------------------------------------
-cat("--- 4. Testing PCA & HCA ---\n")
+cat("--- 4. Testing PCA, HCA & Clustering with Follow-Up Analysis ---\n")
 
 df_pca <- data.frame(
+  Sampel = c("Kolam_01", "Kolam_02", "Kolam_03", "Kolam_04", "Kolam_05", "Kolam_06", "Kolam_07", "Kolam_08"),
   DO = c(6.5, 7.2, 5.8, 6.9, 7.5, 6.1, 5.5, 7.0),
   pH = c(7.8, 8.1, 7.5, 8.0, 8.2, 7.7, 7.4, 7.9),
   Suhu = c(28.5, 29.0, 28.0, 28.8, 29.2, 28.2, 27.9, 28.7),
@@ -93,8 +94,12 @@ df_pca <- data.frame(
 
 res_pca <- sl_analyze_pca_hca(df_pca, list(alpha = 0.05, include_plots = TRUE))
 
-assert_true(length(res_pca$tables_apa) >= 2L, "PCA variance and loadings tables present")
-assert_true(length(res_pca$plots) >= 1L, "PCA biplot generated")
+assert_true(length(res_pca$tables_apa) >= 4L, "PCA & HCA has 4 APA tables (Variance, Loadings, Cluster Profiles ANOVA, Sample Membership)")
+assert_true(length(res_pca$plots) >= 4L, "PCA & HCA has 4 plots (Biplot, Dendrogram, Scree, Cluster Profile)")
+assert_true(res_pca$main$cum2_pct > 50, "PCA explains significant cumulative variance")
+assert_true(res_pca$main$k_clusters >= 2L, "HCA & K-Means clustering executed with >= 2 clusters")
+assert_true(res_pca$main$bss_pct > 0, "K-Means between-cluster separation positive")
+assert_true(grepl("• \\*\\*Kelayakan Reduksi Dimensi\\*\\*", res_pca$interpretation$id), "Key points format in PCA")
 
 # ---------------------------------------------------------------------------
 # Test 5: Dispatcher Routing for all advanced modules

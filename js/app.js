@@ -337,8 +337,8 @@ export const ANALYSIS_TEMPLATES = {
     id: "pca_hca",
     name: "Analisis Multivariat (PCA, HCA & K-Means Clustering)",
     category: "Multivariat & Survival (Roadmap Phase 3)",
-    formatMode: "Matriks Multivariat (Sampel x Variabel Kontinyu)",
-    shortDesc: "Setiap baris adalah sampel kolam pengamatan, setiap kolom adalah variabel kualitas air terukur untuk reduksi dimensi dan dendrogram.",
+    formatMode: "Matriks Multivariat (Kolom Sampel + Kolom-Kolom Variabel)",
+    shortDesc: "Setiap baris adalah unit sampel kolam, kolom pertama ID sampel, dan kolom berikutnya variabel lingkungan/biologis untuk reduksi dimensi, dendrogram Ward.D2, dan profil klaster.",
     headers: ["Sampel_Kolam", "DO", "pH", "Salinitas", "Alkalinitas", "TAN"],
     rows: [
       ["Kolam_01", "6.5", "7.8", "22.5", "120", "0.08"],
@@ -348,7 +348,9 @@ export const ANALYSIS_TEMPLATES = {
       ["Kolam_05", "5.2", "7.4", "24.5", "100", "0.35"],
       ["Kolam_06", "5.0", "7.3", "25.0", "95", "0.42"],
       ["Kolam_07", "6.4", "7.7", "22.2", "118", "0.09"],
-      ["Kolam_08", "6.1", "7.5", "21.9", "112", "0.18"]
+      ["Kolam_08", "6.1", "7.5", "21.9", "112", "0.18"],
+      ["Kolam_09", "4.8", "7.1", "26.0", "90", "0.48"],
+      ["Kolam_10", "4.5", "7.0", "26.5", "85", "0.55"]
     ],
     roles: { mode: "wide", response_cols: ["DO", "pH", "Salinitas", "Alkalinitas", "TAN"], group_col: null },
     analysisType: "pca_hca"
@@ -457,6 +459,18 @@ export async function mountStatLab(rootEl, config = {}) {
                   <option value="power">Power / Alometrik Panjang-Bobot (W = a*L^b)</option>
                   <option value="exponential">Eksponensial (Y = a*e^(bX))</option>
                   <option value="logarithmic">Logaritmik (Y = a + b*ln(X))</option>
+                </select>
+              </div>
+
+              <!-- Cluster Target Selector -->
+              <div class="sl-form-group" id="sl-cluster-k-group" style="display:none;margin-top:8px;">
+                <label for="sl-cluster-k-select" style="font-size:12px;font-weight:600;color:var(--sl-ink);margin-bottom:4px;display:block;">Target Jumlah Klaster (k):</label>
+                <select class="sl-select" id="sl-cluster-k-select" style="width:100%;font-size:12px;padding:5px 8px;">
+                  <option value="auto" selected>★ Otomatis (Rekomendasi Berdasarkan Sampel)</option>
+                  <option value="2">2 Klaster</option>
+                  <option value="3">3 Klaster</option>
+                  <option value="4">4 Klaster</option>
+                  <option value="5">5 Klaster</option>
                 </select>
               </div>
 
@@ -796,10 +810,14 @@ export async function mountStatLab(rootEl, config = {}) {
 
   // Handle Analysis Selection Change
   const curveModelGroup = rootEl.querySelector("#sl-curve-model-group");
+  const clusterKGroup = rootEl.querySelector("#sl-cluster-k-group");
   analysisSelect.onchange = (e) => {
     const key = e.target.value;
     if (curveModelGroup) {
       curveModelGroup.style.display = key === "curve_estimation" ? "block" : "none";
+    }
+    if (clusterKGroup) {
+      clusterKGroup.style.display = key === "pca_hca" ? "block" : "none";
     }
     renderTemplateGuide(key);
   };
@@ -1036,6 +1054,8 @@ export async function mountStatLab(rootEl, config = {}) {
 
       const curveModelSelect = rootEl.querySelector("#sl-curve-model-select");
       const targetCurveModel = curveModelSelect ? curveModelSelect.value : "all";
+      const clusterKSelect = rootEl.querySelector("#sl-cluster-k-select");
+      const targetKClusters = clusterKSelect && clusterKSelect.value !== "auto" ? parseInt(clusterKSelect.value, 10) : null;
 
       const res = await engine.runAnalysis(
         analysisToRun,
@@ -1046,7 +1066,8 @@ export async function mountStatLab(rootEl, config = {}) {
           exclude_rows: grid.getExcludedRows(),
           include_plots: true,
           lang: state.lang,
-          model: targetCurveModel
+          model: targetCurveModel,
+          k_clusters: targetKClusters
         }
       );
 

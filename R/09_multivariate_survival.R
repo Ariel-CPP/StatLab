@@ -743,10 +743,17 @@ sl_analyze_pca_hca <- function(df, opts = list()) {
   plot_lang <- if (!is.null(opts$lang) && opts$lang %in% c("id", "en")) opts$lang else "id"
 
   cols <- names(df)
-  num_cols <- cols[vapply(df, function(c) {
-    v <- suppressWarnings(as.numeric(as.character(c)))
-    sum(is.finite(v)) >= length(v) / 2
-  }, logical(1L))]
+
+  # Check roles
+  resp_roles <- if (!is.null(opts$roles$response_cols)) as.character(opts$roles$response_cols) else character(0)
+  if (length(resp_roles) >= 2L && all(resp_roles %in% cols)) {
+    num_cols <- resp_roles
+  } else {
+    num_cols <- cols[vapply(df, function(c) {
+      v <- suppressWarnings(as.numeric(as.character(c)))
+      sum(is.finite(v)) >= length(v) / 2
+    }, logical(1L))]
+  }
 
   if (length(num_cols) < 2L) {
     stop("PCA & HCA membutuhkan minimal 2 variabel numerik.")
@@ -760,106 +767,422 @@ sl_analyze_pca_hca <- function(df, opts = list()) {
   }
 
   mat <- mat_raw[valid_idx, , drop = FALSE]
+  n_obs <- nrow(mat)
+  p_vars <- ncol(mat)
 
-  # Run PCA
+  # Extract sample labels
+  sample_col_role <- if (!is.null(opts$roles$sample_col)) as.character(opts$roles$sample_col) else ""
+  char_cols <- cols[!cols %in% num_cols]
+  sample_labels <- if (nzchar(sample_col_role) && sample_col_role %in% cols) {
+    as.character(df[[sample_col_role]])[valid_idx]
+  } else if (length(char_cols) >= 1L) {
+    as.character(df[[char_cols[1L]]])[valid_idx]
+  } else if (!is.null(rownames(df)) && !all(rownames(df) == as.character(seq_len(nrow(df))))) {
+    rownames(df)[valid_idx]
+  } else {
+    sprintf("S%02d", seq_len(n_obs))
+  }
+
+  # Target clusters k (user specified or auto recommended)
+  k_req <- if (!is.null(opts$k_clusters)) suppressWarnings(as.integer(opts$k_clusters[[1L]])) else NA_integer_
+  if (is.na(k_req) || k_req < 2L || k_req > min(6L, n_obs - 1L)) {
+    k_clusters <- if (n_obs >= 9L) 3L else 2L
+  } else {
+    k_clusters <- k_req
+  }
+
+  # 1. PCA computation
   pca_res <- stats::prcomp(mat, scale. = TRUE)
   pca_vars <- pca_res$sdev^2
   pca_pcts <- (pca_vars / sum(pca_vars)) * 100.0
   pca_cums <- cumsum(pca_pcts)
+  n_pcs <- min(p_vars, 5L)
 
-  n_pcs <- min(ncol(mat), 5L)
+  # Bartlett's test of sphericity for correlation matrix
+  cor_mat <- stats::cor(mat)
+  det_cor <- base::det(cor_mat)
+  if (is.finite(det_cor) && det_cor > 1e-12 && n_obs > p_vars) {
+    bartlett_chi <- -(n_obs - 1 - (2 * p_vars + 5) / 6) * log(det_cor)
+    bartlett_df <- as.integer((p_vars * (p_vars - 1)) / 2)
+    bartlett_pval <- stats::pchisq(bartlett_chi, df = bartlett_df, lower.tail = FALSE)
+  } else {
+    bartlett_chi <- NA_real_
+    bartlett_df <- as.integer((p_vars * (p_vars - 1)) / 2)
+    bartlett_pval <- NA_real_
+  }
 
-  # Table 1: PCA Variance Explained
-  hdr_pca_id <- sl_box_vec(c("Komponen Utama", "Nilai Eigen (Varians)", "Persentase Varians (%)", "Varians Kumulatif (%)"))
-  hdr_pca_en <- sl_box_vec(c("Principal Component", "Eigenvalue (Variance)", "Variance Explained (%)", "Cumulative Variance (%)"))
+  # 2. HCA (Hierarchical Cluster Analysis) - Ward.D2
+  scaled_mat <- scale(mat)
+  dist_mat <- stats::dist(scaled_mat, method = "euclidean")
+  hc_fit <- stats::hclust(dist_mat, method = "ward.D2")
+  cl_hca <- stats::cutree(hc_fit, k = k_clusters)
+
+  # 3. K-Means Clustering Comparison
+  km_fit <- tryCatch(
+    stats::kmeans(scaled_mat, centers = k_clusters, nstart = 25),
+    error = function(e) stats::kmeans(scaled_mat, centers = k_clusters, nstart = 5)
+  )
+  cl_km <- km_fit$cluster
+  bss_pct <- (km_fit$betweenss / km_fit$totss) * 100.0
+
+  # Distinct publication palette for clusters
+  cluster_palette <- c("#1B365D", "#B83227", "#2E7D32", "#D97706", "#7C3AED", "#0891B2")
+
+  # Table 1: PCA Variance Explained & Kaiser Criterion
+  hdr_pca_id <- sl_box_vec(c("Komponen Utama", "Nilai Eigen (λ)", "Proporsi Varians (%)", "Varians Kumulatif (%)", "Kriteria Kaiser (λ ≥ 1)"))
+  hdr_pca_en <- sl_box_vec(c("Principal Component", "Eigenvalue (λ)", "Variance Explained (%)", "Cumulative Variance (%)", "Kaiser Criterion (λ ≥ 1)"))
 
   rows_pca_id <- list()
   rows_pca_en <- list()
+  kaiser_count <- 0L
   for (pc in seq_len(n_pcs)) {
     pc_name <- sprintf("PC%d", pc)
-    rows_pca_id[[pc]] <- sl_box_vec(c(pc_name, sl_fmt_num(pca_vars[pc], 4L, "id"), sprintf("%s%%", sl_fmt_num(pca_pcts[pc], 2L, "id")), sprintf("%s%%", sl_fmt_num(pca_cums[pc], 2L, "id"))))
-    rows_pca_en[[pc]] <- sl_box_vec(c(pc_name, sl_fmt_num(pca_vars[pc], 4L, "en"), sprintf("%s%%", sl_fmt_num(pca_pcts[pc], 2L, "en")), sprintf("%s%%", sl_fmt_num(pca_cums[pc], 2L, "en"))))
+    is_kaiser <- pca_vars[pc] >= 1.0
+    if (is_kaiser) kaiser_count <- kaiser_count + 1L
+    kaiser_txt_id <- if (is_kaiser) "Ya (λ ≥ 1, Signifikan)" else "Tidak (Meredup)"
+    kaiser_txt_en <- if (is_kaiser) "Yes (λ ≥ 1, Retain)" else "No (λ < 1, Drop)"
+    rows_pca_id[[pc]] <- sl_box_vec(c(pc_name, sl_fmt_num(pca_vars[pc], 4L, "id"), sprintf("%s%%", sl_fmt_num(pca_pcts[pc], 2L, "id")), sprintf("%s%%", sl_fmt_num(pca_cums[pc], 2L, "id")), kaiser_txt_id))
+    rows_pca_en[[pc]] <- sl_box_vec(c(pc_name, sl_fmt_num(pca_vars[pc], 4L, "en"), sprintf("%s%%", sl_fmt_num(pca_pcts[pc], 2L, "en")), sprintf("%s%%", sl_fmt_num(pca_cums[pc], 2L, "en")), kaiser_txt_en))
+  }
+
+  sphericity_note_id <- if (is.finite(bartlett_pval)) {
+    sprintf("Uji Sferisitas Bartlett: χ²(%d) = %s, p = %s (%s). %s",
+      bartlett_df, sl_fmt_num(bartlett_chi, 3L, "id"), sl_fmt_p(bartlett_pval, "id"),
+      if (bartlett_pval < 0.05) "matriks korelasi saling berasosiasi nyata" else "korelasi antar variabel lemah",
+      sprintf("Dua komponen utama pertama merangkum %s%% total variasi data.", sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id")))
+  } else {
+    sprintf("Dua komponen utama pertama merangkum %s%% total variasi data.", sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id"))
+  }
+
+  sphericity_note_en <- if (is.finite(bartlett_pval)) {
+    sprintf("Bartlett Sphericity Test: χ²(%d) = %s, p = %s. First two components account for %s%% of total variance.",
+      bartlett_df, sl_fmt_num(bartlett_chi, 3L, "en"), sl_fmt_p(bartlett_pval, "en"), sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en"))
+  } else {
+    sprintf("First two components account for %s%% of total variance.", sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en"))
   }
 
   tbl_pca <- list(
     id = "pca_variance_table",
-    title = list(id = "Tabel 1. Keragaman Varians Principal Component Analysis (PCA)", en = "Table 1. Principal Component Analysis (PCA) Variance Explained"),
+    title = list(id = "Tabel 1. Keragaman Varians & Nilai Eigen PCA (Kriteria Kaiser)", en = "Table 1. PCA Variance Explained & Eigenvalues (Kaiser Criterion)"),
     headers = list(id = hdr_pca_id, en = hdr_pca_en),
     rows = list(id = rows_pca_id, en = rows_pca_en),
-    note = list(
-      id = sprintf("Dua komponen utama pertama merangkum %s%% total variasi data.", sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id")),
-      en = sprintf("First two components account for %s%% of total variance.", sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en"))
-    )
+    note = list(id = sphericity_note_id, en = sphericity_note_en)
   )
 
-  # Table 2: PC Loadings Matrix
+  # Table 2: PC Loadings & Variable Contribution Matrix
   loadings <- pca_res$rotation[, seq_len(min(3L, n_pcs)), drop = FALSE]
-  hdr_load_id <- sl_box_vec(c("Variabel", colnames(loadings)))
-  hdr_load_en <- sl_box_vec(c("Variable", colnames(loadings)))
+  contrib_pc1 <- (loadings[, 1L]^2 / sum(loadings[, 1L]^2)) * 100.0
+  contrib_pc2 <- if (ncol(loadings) >= 2L) (loadings[, 2L]^2 / sum(loadings[, 2L]^2)) * 100.0 else rep(0, nrow(loadings))
+
+  hdr_load_id <- sl_box_vec(c("Variabel Respon", "Loading PC1", "Kontribusi PC1 (%)", "Loading PC2", "Kontribusi PC2 (%)", "Peran Dominan"))
+  hdr_load_en <- sl_box_vec(c("Response Variable", "PC1 Loading", "PC1 Contrib (%)", "PC2 Loading", "PC2 Contrib (%)", "Dominant Role"))
 
   rows_load_id <- list()
   rows_load_en <- list()
   for (r_idx in seq_len(nrow(loadings))) {
     v_nm <- rownames(loadings)[r_idx]
-    vals_id <- c(v_nm, vapply(loadings[r_idx, ], function(v) sl_fmt_num(v, 4L, "id"), character(1L)))
-    vals_en <- c(v_nm, vapply(loadings[r_idx, ], function(v) sl_fmt_num(v, 4L, "en"), character(1L)))
-    rows_load_id[[r_idx]] <- sl_box_vec(vals_id)
-    rows_load_en[[r_idx]] <- sl_box_vec(vals_en)
+    l1 <- loadings[r_idx, 1L]
+    c1 <- contrib_pc1[r_idx]
+    l2 <- if (ncol(loadings) >= 2L) loadings[r_idx, 2L] else 0
+    c2 <- contrib_pc2[r_idx]
+    dom_id <- if (abs(l1) >= abs(l2)) "Penentu PC1" else "Penentu PC2"
+    dom_en <- if (abs(l1) >= abs(l2)) "Drives PC1" else "Drives PC2"
+
+    rows_load_id[[r_idx]] <- sl_box_vec(c(v_nm, sl_fmt_num(l1, 4L, "id"), sprintf("%s%%", sl_fmt_num(c1, 2L, "id")), sl_fmt_num(l2, 4L, "id"), sprintf("%s%%", sl_fmt_num(c2, 2L, "id")), dom_id))
+    rows_load_en[[r_idx]] <- sl_box_vec(c(v_nm, sl_fmt_num(l1, 4L, "en"), sprintf("%s%%", sl_fmt_num(c1, 2L, "en")), sl_fmt_num(l2, 4L, "en"), sprintf("%s%%", sl_fmt_num(c2, 2L, "en")), dom_en))
   }
 
   tbl_load <- list(
     id = "pca_loadings_table",
-    title = list(id = "Tabel 2. Matriks Bobot Variabel (PC Loadings)", en = "Table 2. Variable Loadings Matrix (PC Loadings)"),
+    title = list(id = "Tabel 2. Matriks Bobot Variabel (PC Loadings) & Kontribusi Relatif", en = "Table 2. Variable Loadings & Relative Variance Contributions"),
     headers = list(id = hdr_load_id, en = hdr_load_en),
     rows = list(id = rows_load_id, en = rows_load_en),
-    note = list(id = "Bobot loading menunjukkan korelasi variabel dengan tiap komponen utama.", en = "Loading weights indicate variable correlations with each component.")
+    note = list(id = "Loading mendekati +1/-1 menunjukkan korelasi sangat kuat; kontribusi (%) mengukur persentase pengaruh variabel terhadap orientasi sumbu komponen.", en = "Loadings near ±1 indicate strong correlation; contribution (%) reflects variable weight in defining the principal axis.")
   )
 
-  # Biplot & Dendrogram
+  # Table 3: Analisa Lanjutan — Profil Rataan & Uji Beda Nyata Antar-Klaster (One-Way ANOVA)
+  cl_counts <- table(factor(cl_hca, levels = seq_len(k_clusters)))
+  hdr_prof_id_vec <- c("Variabel Respon", "Rataan Total (SD)", sprintf("Klaster %d (n=%d)", seq_len(k_clusters), as.vector(cl_counts)), "F-Hitung", "P-Value", "Signifikansi")
+  hdr_prof_en_vec <- c("Response Variable", "Overall Mean (SD)", sprintf("Cluster %d (n=%d)", seq_len(k_clusters), as.vector(cl_counts)), "F-Statistic", "p-value", "Significance")
+  hdr_prof_id <- sl_box_vec(hdr_prof_id_vec)
+  hdr_prof_en <- sl_box_vec(hdr_prof_en_vec)
+
+  rows_prof_id <- list()
+  rows_prof_en <- list()
+  sig_cluster_vars <- character(0)
+
+  for (v_idx in seq_along(num_cols)) {
+    v_nm <- num_cols[v_idx]
+    v_vec <- mat[, v_idx]
+    tot_mean <- mean(v_vec)
+    tot_sd <- sd(v_vec)
+    tot_str_id <- sprintf("%s ± %s", sl_fmt_num(tot_mean, 2L, "id"), sl_fmt_num(tot_sd, 2L, "id"))
+    tot_str_en <- sprintf("%s ± %s", sl_fmt_num(tot_mean, 2L, "en"), sl_fmt_num(tot_sd, 2L, "en"))
+
+    cl_strs_id <- character(k_clusters)
+    cl_strs_en <- character(k_clusters)
+    for (k_idx in seq_len(k_clusters)) {
+      sub_v <- v_vec[cl_hca == k_idx]
+      m_k <- mean(sub_v)
+      sd_k <- if (length(sub_v) > 1L) sd(sub_v) else 0
+      cl_strs_id[k_idx] <- sprintf("%s ± %s", sl_fmt_num(m_k, 2L, "id"), sl_fmt_num(sd_k, 2L, "id"))
+      cl_strs_en[k_idx] <- sprintf("%s ± %s", sl_fmt_num(m_k, 2L, "en"), sl_fmt_num(sd_k, 2L, "en"))
+    }
+
+    # One-Way ANOVA across clusters
+    aov_res <- tryCatch(summary(stats::aov(v_vec ~ factor(cl_hca)))[[1L]], error = function(e) NULL)
+    if (!is.null(aov_res) && nrow(aov_res) >= 2L) {
+      f_stat <- aov_res[["F value"]][1L]
+      p_val  <- aov_res[["Pr(>F)"]][1L]
+      sig_mark <- if (is.finite(p_val) && p_val < 0.001) "***" else if (is.finite(p_val) && p_val < 0.01) "**" else if (is.finite(p_val) && p_val < 0.05) "*" else "tn"
+      if (is.finite(p_val) && p_val < 0.05) sig_cluster_vars <- c(sig_cluster_vars, v_nm)
+    } else {
+      f_stat <- NA_real_
+      p_val  <- NA_real_
+      sig_mark <- "tn"
+    }
+
+    rows_prof_id[[v_idx]] <- sl_box_vec(c(v_nm, tot_str_id, cl_strs_id, sl_fmt_num(f_stat, 3L, "id"), sl_fmt_p(p_val, "id"), sig_mark))
+    rows_prof_en[[v_idx]] <- sl_box_vec(c(v_nm, tot_str_en, cl_strs_en, sl_fmt_num(f_stat, 3L, "en"), sl_fmt_p(p_val, "en"), if (sig_mark == "tn") "ns" else sig_mark))
+  }
+
+  tbl_prof <- list(
+    id = "cluster_profiles_table",
+    title = list(id = "Tabel 3. Analisa Lanjutan: Profil Karakteristik & Uji Beda Nyata Antar-Klaster (One-Way ANOVA)", en = "Table 3. Follow-Up Analysis: Cluster Profiles & Inter-Cluster ANOVA"),
+    headers = list(id = hdr_prof_id, en = hdr_prof_en),
+    rows = list(id = rows_prof_id, en = rows_prof_en),
+    note = list(
+      id = sprintf("Uji ANOVA univariat membuktikan variabel mana yang membedakan profil klaster secara signifikan (* p < 0,05; ** p < 0,01; *** p < 0,001). Efisiensi separasi K-Means = %s%% (BSS/TSS).", sl_fmt_num(bss_pct, 2L, "id")),
+      en = sprintf("Univariate ANOVA proves which variables distinguish the clusters significantly (* p < .05; ** p < .01; *** p < .001). K-Means separation ratio = %s%% (BSS/TSS).", sl_fmt_num(bss_pct, 2L, "en"))
+    )
+  )
+
+  # Table 4: Keanggotaan Klaster & Koordinat Sampel
+  hdr_mem_id <- sl_box_vec(c("ID Sampel", "Skor PC1", "Skor PC2", "Klaster HCA (Ward.D2)", "Klaster K-Means", "Kesesuaian"))
+  hdr_mem_en <- sl_box_vec(c("Sample ID", "PC1 Score", "PC2 Score", "HCA Cluster (Ward.D2)", "K-Means Cluster", "Consensus"))
+
+  rows_mem_id <- list()
+  rows_mem_en <- list()
+  for (s_idx in seq_len(n_obs)) {
+    s_id <- sample_labels[s_idx]
+    pc1_s <- pca_res$x[s_idx, 1L]
+    pc2_s <- if (ncol(pca_res$x) >= 2L) pca_res$x[s_idx, 2L] else 0
+    cl_h <- sprintf("Klaster %d", cl_hca[s_idx])
+    cl_k <- sprintf("Klaster %d", cl_km[s_idx])
+    match_txt_id <- if (cl_hca[s_idx] == cl_km[s_idx]) "Konsisten" else "Variasi Model"
+    match_txt_en <- if (cl_hca[s_idx] == cl_km[s_idx]) "Consistent" else "Model Variation"
+
+    rows_mem_id[[s_idx]] <- sl_box_vec(c(s_id, sl_fmt_num(pc1_s, 3L, "id"), sl_fmt_num(pc2_s, 3L, "id"), cl_h, cl_k, match_txt_id))
+    rows_mem_en[[s_idx]] <- sl_box_vec(c(s_id, sl_fmt_num(pc1_s, 3L, "en"), sl_fmt_num(pc2_s, 3L, "en"), sprintf("Cluster %d", cl_hca[s_idx]), sprintf("Cluster %d", cl_km[s_idx]), match_txt_en))
+  }
+
+  tbl_mem <- list(
+    id = "sample_membership_table",
+    title = list(id = "Tabel 4. Pemetaan Koordinat Komponen Utama & Keanggotaan Klaster Sampel", en = "Table 4. Sample PC Coordinates & Cluster Membership Assignment"),
+    headers = list(id = hdr_mem_id, en = hdr_mem_en),
+    rows = list(id = rows_mem_id, en = rows_mem_en),
+    note = list(id = "Menunjukkan posisi tiap unit pengamatan pada ruang komponen utama serta penugasan klaster berdasarkan algoritma hirarki dan non-hirarki.", en = "Displays the coordinates of each sample in PC space and its assigned cluster across hierarchical and partitioning methods.")
+  )
+
+  # Biplot & Dendrogram & Scree & Profile Plots
   plots <- list()
   if (include_plots) {
+    # Plot 1: Cluster-Colored PCA Biplot
     p_biplot <- sl_capture_plot(function() {
       graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
-      stats::biplot(
-        pca_res,
-        col = c("#1B365D", "#B83227"),
-        cex = c(0.85, 0.95),
-        main = if (plot_lang == "id") "Biplot Analisis Komponen Utama (PCA)" else "PCA Biplot",
+      x_scores <- pca_res$x[, 1L]
+      y_scores <- if (ncol(pca_res$x) >= 2L) pca_res$x[, 2L] else rep(0, n_obs)
+      
+      max_x <- max(abs(x_scores)) * 1.3
+      max_y <- max(abs(y_scores)) * 1.3
+      if (max_x == 0) max_x <- 1
+      if (max_y == 0) max_y <- 1
+
+      plot(
+        x_scores, y_scores,
+        type = "n",
+        xlim = c(-max_x, max_x), ylim = c(-max_y, max_y),
+        xlab = sprintf(if (plot_lang == "id") "PC1 (%s%% Varians)" else "PC1 (%s%% Variance)", sl_fmt_num(pca_pcts[1L], 1L, plot_lang)),
+        ylab = sprintf(if (plot_lang == "id") "PC2 (%s%% Varians)" else "PC2 (%s%% Variance)", sl_fmt_num(if (n_pcs >= 2L) pca_pcts[2L] else 0, 1L, plot_lang)),
+        main = if (plot_lang == "id") "Biplot PCA Berwarna Berdasarkan Klaster (Ward.D2)" else "PCA Biplot Colored by HCA Clusters",
         las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
       )
+      graphics::grid(col = "#E3DDD0", lty = 3)
+      graphics::abline(h = 0, v = 0, col = "#8C9BAE", lty = 2, lwd = 0.9)
+
+      # Loading arrows scaled to plot
+      max_load <- max(abs(loadings[, seq_len(min(2L, ncol(loadings)))]))
+      if (max_load == 0) max_load <- 1
+      scale_arrow <- (max_x * 0.75) / max_load
+
+      for (j in seq_len(nrow(loadings))) {
+        lx <- loadings[j, 1L] * scale_arrow
+        ly <- if (ncol(loadings) >= 2L) loadings[j, 2L] * scale_arrow else 0
+        graphics::arrows(0, 0, lx, ly, length = 0.08, col = "#B83227", lwd = 1.8)
+        graphics::text(lx * 1.15, ly * 1.15, labels = rownames(loadings)[j], col = "#B83227", font = 2, cex = 0.82)
+      }
+
+      # Sample points colored by cluster
+      graphics::points(x_scores, y_scores, pch = 21, bg = cluster_palette[cl_hca], col = "#1B365D", cex = 1.4, lwd = 1.2)
+      graphics::text(x_scores, y_scores, labels = sample_labels, pos = 3, cex = 0.8, col = "#1B365D", font = 2)
+
+      # Cluster legend
+      leg_labels <- sprintf(if (plot_lang == "id") "Klaster %d (n=%d)" else "Cluster %d (n=%d)", seq_len(k_clusters), as.vector(cl_counts))
+      graphics::legend("topright", legend = leg_labels, pt.bg = cluster_palette[seq_len(k_clusters)], pch = 21, col = "#1B365D", pt.cex = 1.2, bty = "n", cex = 0.82)
+    }, width_in = 6.5, height_in = 4.6, res = 300)
+
+    # Plot 2: HCA Dendrogram with Cluster Rectangles
+    p_dend <- sl_capture_plot(function() {
+      graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+      plot(
+        hc_fit,
+        labels = sample_labels,
+        hang = -1,
+        main = if (plot_lang == "id") sprintf("Dendrogram Klasterisasi Hirarki (%d Klaster Metode Ward.D2)", k_clusters) else sprintf("Hierarchical Clustering Dendrogram (%d Clusters Ward.D2)", k_clusters),
+        xlab = if (plot_lang == "id") "Sampel Unit Pengamatan" else "Sample Units",
+        ylab = if (plot_lang == "id") "Jarak Disimilaritas Euclidean Terstandarisasi" else "Standardized Euclidean Dissimilarity",
+        sub = "",
+        las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D"
+      )
+      stats::rect.hclust(hc_fit, k = k_clusters, border = cluster_palette[seq_len(k_clusters)])
     }, width_in = 6.5, height_in = 4.4, res = 300)
 
-    plots[[1L]] <- list(
-      id = "pca_biplot",
-      title = list(id = "Biplot Analisis Komponen Utama (PCA)", en = "PCA Biplot"),
-      png_data_url = p_biplot$png_data_url,
-      width_in = p_biplot$width_in,
-      height_in = p_biplot$height_in
+    # Plot 3: Scree Plot & Kaiser Criterion Line
+    p_scree <- sl_capture_plot(function() {
+      graphics::par(mar = c(4.5, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+      bp_vals <- pca_vars[seq_len(n_pcs)]
+      names(bp_vals) <- sprintf("PC%d", seq_len(n_pcs))
+      max_bp <- max(max(bp_vals) * 1.2, 1.5)
+      
+      bp <- graphics::barplot(
+        bp_vals,
+        ylim = c(0, max_bp),
+        col = ifelse(bp_vals >= 1.0, "#1B365D", "#8C9BAE"),
+        main = if (plot_lang == "id") "Scree Plot Nilai Eigen & Kriteria Kaiser (λ ≥ 1.0)" else "Scree Plot of Eigenvalues & Kaiser Criterion",
+        ylab = if (plot_lang == "id") "Nilai Eigen (Varians)" else "Eigenvalue (Variance)",
+        xlab = if (plot_lang == "id") "Komponen Utama" else "Principal Component",
+        las = 1, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D", border = NA
+      )
+      graphics::grid(col = "#E3DDD0", lty = 3)
+      graphics::abline(h = 1.0, col = "#B83227", lty = 2, lwd = 1.8)
+      graphics::text(mean(bp), 1.0 + max_bp * 0.04, labels = if (plot_lang == "id") "Ambang Kriteria Kaiser (λ = 1.0)" else "Kaiser Criterion Cutoff (λ = 1.0)", col = "#B83227", font = 2, cex = 0.8)
+      
+      for (i in seq_along(bp)) {
+        graphics::text(bp[i], bp_vals[i] + max_bp * 0.03, labels = sprintf("%s%%", sl_fmt_num(pca_pcts[i], 1L, plot_lang)), font = 2, cex = 0.8, col = "#1B365D")
+      }
+    }, width_in = 6.5, height_in = 4.2, res = 300)
+
+    # Plot 4: Cluster Profile Comparison (Z-score Barplot)
+    p_prof <- sl_capture_plot(function() {
+      graphics::par(mar = c(6.0, 4.5, 3.2, 1.5), bg = "#FFFDF8", family = "sans")
+      z_mat <- scale(mat)
+      z_means <- matrix(0, nrow = p_vars, ncol = k_clusters)
+      rownames(z_means) <- num_cols
+      colnames(z_means) <- sprintf(if (plot_lang == "id") "Klaster %d" else "Cluster %d", seq_len(k_clusters))
+      for (j in seq_len(p_vars)) {
+        z_means[j, ] <- tapply(z_mat[, j], factor(cl_hca, levels = seq_len(k_clusters)), mean, default = 0)
+      }
+      
+      bp_prof <- graphics::barplot(
+        t(z_means), beside = TRUE, col = cluster_palette[seq_len(k_clusters)],
+        main = if (plot_lang == "id") "Profil Komparasi Karakteristik Antar-Klaster (Skor Standar Z-Score)" else "Cluster Profile Comparison (Standardized Z-Score Means)",
+        ylab = if (plot_lang == "id") "Deviasi Relatif (Z-Score Rataan)" else "Relative Deviation (Mean Z-Score)",
+        las = 2, col.main = "#1B365D", col.lab = "#1B365D", col.axis = "#1B365D", border = NA
+      )
+      graphics::abline(h = 0, col = "#1B365D", lwd = 1.2)
+      graphics::grid(col = "#E3DDD0", lty = 3)
+      graphics::legend("topright", legend = sprintf(if (plot_lang == "id") "Klaster %d" else "Cluster %d", seq_len(k_clusters)), fill = cluster_palette[seq_len(k_clusters)], bty = "n", cex = 0.8)
+    }, width_in = 6.5, height_in = 4.5, res = 300)
+
+    plots <- list(
+      list(
+        id = "pca_biplot",
+        title = list(id = "Biplot PCA & Sebaran Klaster Sampel", en = "PCA Biplot & Sample Cluster Distribution"),
+        png_data_url = p_biplot$png_data_url,
+        width_in = p_biplot$width_in,
+        height_in = p_biplot$height_in
+      ),
+      list(
+        id = "hca_dendrogram",
+        title = list(id = "Dendrogram Klasterisasi Hirarki (Metode Ward.D2)", en = "Hierarchical Clustering Dendrogram (Ward.D2 Method)"),
+        png_data_url = p_dend$png_data_url,
+        width_in = p_dend$width_in,
+        height_in = p_dend$height_in
+      ),
+      list(
+        id = "pca_scree",
+        title = list(id = "Scree Plot Varians & Kriteria Kaiser (λ ≥ 1.0)", en = "Scree Plot & Kaiser Criterion Cutoff (λ ≥ 1.0)"),
+        png_data_url = p_scree$png_data_url,
+        width_in = p_scree$width_in,
+        height_in = p_scree$height_in
+      ),
+      list(
+        id = "cluster_profile",
+        title = list(id = "Profil Karakteristik Klaster (Skor Standar Z-Score)", en = "Cluster Profiles (Standardized Z-Score Means)"),
+        png_data_url = p_prof$png_data_url,
+        width_in = p_prof$width_in,
+        height_in = p_prof$height_in
+      )
     )
   }
 
   warnings_id <- character(0)
   warnings_en <- character(0)
 
+  # Poin Kunci (Key Points)
   pts_id <- c(
-    sprintf("• **Proporsi Variansi Terjelaskan**: Dua komponen utama pertama berhasil mereduksi dimensi data dan menjelaskan %s%% dari total variansi multivariat.",
-      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id")),
-    sprintf("• **Kontribusi Komponen**: PC1 menyumbang %s%% variasi dan PC2 menyumbang %s%% variasi.",
+    if (is.finite(bartlett_pval) && bartlett_pval < 0.05) {
+      sprintf("• **Kelayakan Reduksi Dimensi**: Uji Sferisitas Bartlett membuktikan terdapat korelasi multivariat yang sangat signifikan antar variabel (χ²(%d) = %s, p = %s), mengonfirmasi bahwa reduksi dimensi PCA sangat valid dan tepat digunakan.",
+        bartlett_df, sl_fmt_num(bartlett_chi, 3L, "id"), sl_fmt_p(bartlett_pval, "id"))
+    } else if (is.finite(bartlett_pval)) {
+      sprintf("• **Kelayakan Reduksi Dimensi**: Uji Sferisitas Bartlett menunjukkan korelasi antar variabel tergolong moderat (χ²(%d) = %s, p = %s).",
+        bartlett_df, sl_fmt_num(bartlett_chi, 3L, "id"), sl_fmt_p(bartlett_pval, "id"))
+    } else {
+      "• **Kelayakan Reduksi Dimensi**: Matriks kovarian/korelasi berhasil distandarisasi untuk analisis multivariat komprehensif."
+    },
+    sprintf("• **Daya Jelas PCA & Kriteria Kaiser**: Dua komponen utama pertama menjelaskan %s%% dari total variansi multivariat (PC1 = %s%%, PC2 = %s%%). Terdapat %d komponen yang memenuhi Kriteria Kaiser (nilai eigen λ ≥ 1,0) sebagai dimensi inti yang representatif.",
+      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id"),
       sl_fmt_num(pca_pcts[1L], 2L, "id"),
-      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "id") else "0"),
-    sprintf("• **Proyeksi Loading & Sampel**: Biplot memetakan korelasi antar-%d variabel dan sebaran kedekatan profil antar-sampel.",
-      length(num_cols))
+      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "id") else "0",
+      kaiser_count),
+    sprintf("• **Pemisahan Klaster (HCA Ward.D2 & K-Means)**: Analisis klaster hirarki aglomeratif berhasil mengelompokkan %d sampel pengamatan ke dalam %d klaster terpisah dengan efisiensi pemisahan sebesar %s%% (BSS/TSS).",
+      n_obs, k_clusters, sl_fmt_num(bss_pct, 2L, "id")),
+    if (length(sig_cluster_vars) > 0L) {
+      sprintf("• **Analisa Lanjutan — Pembeda Signifikan Antar-Klaster**: Uji ANOVA univariat membuktikan bahwa klaster-klaster tersebut terpisah secara nyata (p < 0,05) terutama dipicu oleh parameter [%s]. Karakteristik unik masing-masing klaster terangkum pada Tabel 3 dan Grafik Profil Klaster.",
+        paste(sig_cluster_vars, collapse = ", "))
+    } else {
+      "• **Analisa Lanjutan — Karakteristik Klaster**: Profil masing-masing klaster menunjukkan diferensiasi karakteristik yang terangkum pada Tabel 3."
+    },
+    sprintf("• **Distribusi Unit Sampel**: Sampel terdistribusi ke dalam kelompok: %s. Pengelompokan ini dapat langsung dijadikan dasar segmentasi penanganan dan strategi intervensi spesifik di lapangan.",
+      paste(sprintf("Klaster %d (%d sampel)", seq_len(k_clusters), as.vector(cl_counts)), collapse = ", "))
   )
   interp_id <- paste(pts_id, collapse = "\n")
 
   pts_en <- c(
-    sprintf("• **Explained Variance**: The first two principal components capture %s%% of the total multivariate variation.",
-      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en")),
-    sprintf("• **Component Breakdown**: PC1 accounts for %s%% and PC2 accounts for %s%% of the total variance.",
+    if (is.finite(bartlett_pval) && bartlett_pval < 0.05) {
+      sprintf("• **Dimensionality Feasibility**: Bartlett's test of sphericity confirmed significant multivariate correlation among variables (χ²(%d) = %s, p = %s), demonstrating that PCA dimensionality reduction is fully warranted.",
+        bartlett_df, sl_fmt_num(bartlett_chi, 3L, "en"), sl_fmt_p(bartlett_pval, "en"))
+    } else if (is.finite(bartlett_pval)) {
+      sprintf("• **Dimensionality Feasibility**: Bartlett's test showed moderate correlation among variables (χ²(%d) = %s, p = %s).",
+        bartlett_df, sl_fmt_num(bartlett_chi, 3L, "en"), sl_fmt_p(bartlett_pval, "en"))
+    } else {
+      "• **Dimensionality Feasibility**: Covariance/correlation matrix successfully standardized for multivariate analysis."
+    },
+    sprintf("• **PCA Explanatory Power & Kaiser Rule**: The first two principal components explain %s%% of the total multivariate variation (PC1 = %s%%, PC2 = %s%%). %d component(s) satisfy Kaiser's criterion (eigenvalue λ ≥ 1.0) as core representative dimensions.",
+      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en"),
       sl_fmt_num(pca_pcts[1L], 2L, "en"),
-      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "en") else "0"),
-    sprintf("• **Biplot Interpretation**: Biplot projects loading relationships across %d variables and sample clustering.",
-      length(num_cols))
+      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "en") else "0",
+      kaiser_count),
+    sprintf("• **Cluster Partitioning (HCA Ward.D2 & K-Means)**: Agglomerative hierarchical clustering segmented %d sample units into %d distinct clusters with a between-cluster separation efficiency of %s%% (BSS/TSS).",
+      n_obs, k_clusters, sl_fmt_num(bss_pct, 2L, "en")),
+    if (length(sig_cluster_vars) > 0L) {
+      sprintf("• **Follow-Up Analysis — Key Cluster Drivers**: Univariate ANOVA confirmed that cluster profiles differ significantly (p < .05) driven primarily by parameter(s) [%s]. Detailed profiles are reported in Table 3 and the Cluster Profile plot.",
+        paste(sig_cluster_vars, collapse = ", "))
+    } else {
+      "• **Follow-Up Analysis — Cluster Characteristics**: Distinct biological and environmental profiles across clusters are presented in Table 3."
+    },
+    sprintf("• **Sample Distribution**: Observation units partitioned as follows: %s. This provides a direct basis for targeted intervention and resource allocation.",
+      paste(sprintf("Cluster %d (%d samples)", seq_len(k_clusters), as.vector(cl_counts)), collapse = ", "))
   )
   interp_en <- paste(pts_en, collapse = "\n")
 
@@ -883,14 +1206,33 @@ sl_analyze_pca_hca <- function(df, opts = list()) {
     meta = meta,
     assumptions = list(normality_violated = FALSE, homogeneity_violated = FALSE),
     outliers = list(flagged = data.frame()),
-    main = list(pc1_pct = pca_pcts[1L], pc2_pct = if (n_pcs >= 2L) pca_pcts[2L] else 0, cum2_pct = pca_cums[min(2L, n_pcs)]),
+    main = list(
+      pc1_pct = pca_pcts[1L],
+      pc2_pct = if (n_pcs >= 2L) pca_pcts[2L] else 0,
+      cum2_pct = pca_cums[min(2L, n_pcs)],
+      kaiser_count = kaiser_count,
+      k_clusters = k_clusters,
+      bss_pct = bss_pct
+    ),
     posthoc = NULL,
-    tables_apa = list(tbl_pca, tbl_load),
+    tables_apa = list(tbl_pca, tbl_load, tbl_prof, tbl_mem),
     tables_full = list(),
     formulas = list(
       list(
-        title = list(id = "Transformasi PCA", en = "PCA Transformation"),
-        latex = "Z_i = \\mathbf{X} \\mathbf{v}_i, \\quad \\mathbf{\\Sigma} \\mathbf{v}_i = \\lambda_i \\mathbf{v}_i"
+        title = list(id = "Model Komponen Utama (PCA)", en = "Principal Component Model"),
+        latex = "Z_m = \\sum_{j=1}^p w_{mj} X_j, \\quad \\mathbf{\\Sigma} \\mathbf{w}_m = \\lambda_m \\mathbf{w}_m"
+      ),
+      list(
+        title = list(id = "Jarak Disimilaritas Euclidean Terstandarisasi", en = "Standardized Euclidean Distance"),
+        latex = "d(\\mathbf{x}_i, \\mathbf{x}_j) = \\sqrt{\\sum_{k=1}^p \\left(\\frac{x_{ik} - x_{jk}}{s_k}\\right)^2}"
+      ),
+      list(
+        title = list(id = "Kriteria Aglomerasi Varians Minimum Ward", en = "Ward's Minimum Variance Agglomeration"),
+        latex = "\\Delta ESS = \\frac{n_A n_B}{n_A + n_B} \\|\\bar{\\mathbf{x}}_A - \\bar{\\mathbf{x}}_B\\|^2"
+      ),
+      list(
+        title = list(id = "Uji Sferisitas Bartlett untuk PCA", en = "Bartlett's Test of Sphericity"),
+        latex = "\\chi^2 = -\\left(n - 1 - \\frac{2p+5}{6}\\right) \\ln |\\mathbf{R}|, \\quad \\text{db} = \\frac{p(p-1)}{2}"
       )
     ),
     plots = plots,
