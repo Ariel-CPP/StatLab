@@ -77,6 +77,98 @@ export const ANALYSIS_SCHEMAS = {
     allowedModes: ["wide"],
     minNumericCols: 2,
     supportsGrouping: false
+  },
+  kruskal_wallis: {
+    name: { id: "Uji Kruskal-Wallis & Post-Hoc Dunn", en: "Kruskal-Wallis Test & Dunn Post-Hoc" },
+    description: {
+      id: "Padanan non-parametrik One-Way ANOVA untuk >= 2 kelompok perlakuan.",
+      en: "Non-parametric counterpart to One-Way ANOVA for >= 2 treatment groups."
+    },
+    allowedModes: ["wide", "long"],
+    minNumericCols: 2,
+    supportsGrouping: true
+  },
+  mann_whitney: {
+    name: { id: "Uji Mann-Whitney U", en: "Mann-Whitney U Test" },
+    description: {
+      id: "Uji beda median non-parametrik untuk 2 kelompok independen.",
+      en: "Non-parametric median comparison for 2 independent groups."
+    },
+    allowedModes: ["wide", "long"],
+    minNumericCols: 2,
+    maxNumericCols: 2,
+    supportsGrouping: true
+  },
+  wilcoxon_signed: {
+    name: { id: "Uji Wilcoxon Bertanda", en: "Wilcoxon Signed-Rank Test" },
+    description: {
+      id: "Uji perubahan non-parametrik sampel berpasangan (Sebelum vs Sesudah).",
+      en: "Non-parametric paired change test (Before vs After)."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    maxNumericCols: 2,
+    supportsGrouping: false
+  },
+  friedman: {
+    name: { id: "Uji Friedman", en: "Friedman Test" },
+    description: {
+      id: "Uji non-parametrik pengukuran berulang / rancangan acak kelompok.",
+      en: "Non-parametric repeated measures / randomized block test."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 3,
+    supportsGrouping: false
+  },
+  repeated_measures: {
+    name: { id: "Repeated Measures ANOVA", en: "Repeated Measures ANOVA" },
+    description: {
+      id: "Pengukuran berulang melintasi waktu dengan koreksi sferisitas Greenhouse-Geisser.",
+      en: "Longitudinal repeated measures with Greenhouse-Geisser sphericity adjustment."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 3,
+    supportsGrouping: false
+  },
+  manova: {
+    name: { id: "MANOVA (Multivariate ANOVA)", en: "MANOVA (Multivariate ANOVA)" },
+    description: {
+      id: "Analisis varians multivariat untuk >= 2 variabel respon secara simultan.",
+      en: "Multivariate analysis of variance for >= 2 response variables simultaneously."
+    },
+    allowedModes: ["long"],
+    minNumericCols: 2,
+    supportsGrouping: true
+  },
+  kaplan_meier: {
+    name: { id: "Survival Analysis (Kaplan-Meier)", en: "Survival Analysis (Kaplan-Meier)" },
+    description: {
+      id: "Analisis ketahanan hidup dengan estimator Kaplan-Meier dan uji Log-Rank.",
+      en: "Survival analysis with Kaplan-Meier estimator and Log-Rank test."
+    },
+    allowedModes: ["long"],
+    minNumericCols: 1,
+    supportsGrouping: true
+  },
+  pca_hca: {
+    name: { id: "PCA, HCA & Clustering", en: "PCA, HCA & Clustering" },
+    description: {
+      id: "Reduksi dimensi, klasterisasi hirarki Ward.D2, K-Means, dan ANOVA profil klaster.",
+      en: "Dimension reduction, Ward.D2 hierarchical clustering, K-Means, and cluster ANOVA profiles."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    supportsGrouping: false
+  },
+  chisquare_indep: {
+    name: { id: "Uji Chi-Square Independensi", en: "Chi-Square Test of Independence" },
+    description: {
+      id: "Uji asosiasi dan independensi tabel kontingensi dua arah.",
+      en: "Association and independence test for two-way contingency tables."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    supportsGrouping: false
   }
 };
 

@@ -27,8 +27,9 @@ sl_dispatch <- function(action, payload = list()) {
       platform = R.version$platform,
       supported_analyses = sl_box_vec(c(
         "descriptive", "oneway_anova", "anova", "twoway_anova",
-        "independent_t", "paired_t", "regression", "chisquare_indep",
-        "repeated_measures", "manova", "kaplan_meier", "pca_hca"
+        "independent_t", "paired_t", "regression", "curve_estimation", "chisquare_indep",
+        "repeated_measures", "manova", "kaplan_meier", "pca_hca",
+        "kruskal_wallis", "mann_whitney", "wilcoxon_signed", "friedman"
       )),
       recommended_packages = list(
         survival = nzchar(system.file(package = "survival")),
@@ -73,6 +74,13 @@ sl_dispatch <- function(action, payload = list()) {
       manova            = sl_analyze_manova(df, opts),
       kaplan_meier      = sl_analyze_kaplan_meier(df, opts),
       pca_hca           = sl_analyze_pca_hca(df, opts),
+      kruskal_wallis    = sl_analyze_kruskal_wallis(df, opts),
+      kruskal           = sl_analyze_kruskal_wallis(df, opts),
+      mann_whitney      = sl_analyze_mann_whitney(df, opts),
+      wilcoxon_indep    = sl_analyze_mann_whitney(df, opts),
+      wilcoxon_signed   = sl_analyze_wilcoxon_signed(df, opts),
+      wilcoxon_paired   = sl_analyze_wilcoxon_signed(df, opts),
+      friedman          = sl_analyze_friedman(df, opts),
       stop(sprintf("Unsupported `analysis_type`: %s", analysis_type))
     )
     return(sl_to_json(res))

@@ -354,6 +354,90 @@ export const ANALYSIS_TEMPLATES = {
     ],
     roles: { mode: "wide", response_cols: ["DO", "pH", "Salinitas", "Alkalinitas", "TAN"], group_col: null },
     analysisType: "pca_hca"
+  },
+  kruskal_wallis: {
+    id: "kruskal_wallis",
+    name: "Uji Kruskal-Wallis & Post-Hoc Dunn (Non-Parametrik ANOVA)",
+    category: "Uji Non-Parametrik Lengkap",
+    formatMode: "Format Panjang atau Lebar (≥2 Kelompok Perlakuan)",
+    shortDesc: "Padanan non-parametrik One-Way ANOVA saat data terdistribusi miring atau melanggar normalitas.",
+    headers: ["Perlakuan", "Bakteri_CFU"],
+    rows: [
+      ["Kontrol", "125"],
+      ["Kontrol", "140"],
+      ["Kontrol", "135"],
+      ["Kontrol", "150"],
+      ["Dosis_A", "65"],
+      ["Dosis_A", "80"],
+      ["Dosis_A", "75"],
+      ["Dosis_A", "70"],
+      ["Dosis_B", "22"],
+      ["Dosis_B", "28"],
+      ["Dosis_B", "18"],
+      ["Dosis_B", "32"]
+    ],
+    roles: { mode: "long", response_cols: ["Bakteri_CFU"], group_col: "Perlakuan" },
+    analysisType: "kruskal_wallis"
+  },
+  mann_whitney: {
+    id: "mann_whitney",
+    name: "Uji Mann-Whitney U (Dua Sampel Independen)",
+    category: "Uji Non-Parametrik Lengkap",
+    formatMode: "Format Lebar (2 Kolom) atau Format Panjang (1 Faktor 2 Level)",
+    shortDesc: "Padanan non-parametrik independent t-test untuk menguji perbedaan median antar dua kelompok independen.",
+    headers: ["Kontrol", "Probiotik"],
+    rows: [
+      ["12.5", "15.2"],
+      ["11.8", "16.0"],
+      ["13.0", "15.8"],
+      ["12.2", "16.5"],
+      ["11.5", "17.0"],
+      ["12.8", "15.5"],
+      ["12.0", "16.2"],
+      ["11.9", "16.8"]
+    ],
+    roles: { mode: "wide", response_cols: ["Kontrol", "Probiotik"], group_col: null },
+    analysisType: "mann_whitney"
+  },
+  wilcoxon_signed: {
+    id: "wilcoxon_signed",
+    name: "Uji Peringkat Bertanda Wilcoxon (Sampel Berpasangan)",
+    category: "Uji Non-Parametrik Lengkap",
+    formatMode: "Format Lebar (Kolom Sebelum vs Kolom Sesudah)",
+    shortDesc: "Padanan non-parametrik paired t-test untuk menguji perubahan sebelum vs sesudah intervensi pada subjek yang sama.",
+    headers: ["Sebelum", "Sesudah"],
+    rows: [
+      ["185", "165"],
+      ["192", "170"],
+      ["178", "175"],
+      ["205", "180"],
+      ["190", "172"],
+      ["210", "185"],
+      ["198", "178"],
+      ["182", "168"],
+      ["195", "174"],
+      ["188", "171"]
+    ],
+    roles: { mode: "wide", response_cols: ["Sebelum", "Sesudah"], group_col: null },
+    analysisType: "wilcoxon_signed"
+  },
+  friedman: {
+    id: "friedman",
+    name: "Uji Friedman (Non-Parametrik Pengukuran Berulang / Blok)",
+    category: "Uji Non-Parametrik Lengkap",
+    formatMode: "Format Lebar (Setiap Kolom adalah Titik Waktu / Kondisi)",
+    shortDesc: "Padanan non-parametrik Repeated Measures ANOVA untuk mengevaluasi perubahan berulang melintasi waktu pada subjek yang sama.",
+    headers: ["Minggu_0", "Minggu_2", "Minggu_4", "Minggu_6"],
+    rows: [
+      ["10.2", "12.5", "15.8", "18.5"],
+      ["9.8", "11.9", "15.2", "17.8"],
+      ["10.5", "12.8", "16.0", "19.0"],
+      ["11.0", "13.2", "16.5", "19.5"],
+      ["9.5", "12.0", "15.0", "18.2"],
+      ["10.8", "12.9", "16.2", "19.1"]
+    ],
+    roles: { mode: "wide", response_cols: ["Minggu_0", "Minggu_2", "Minggu_4", "Minggu_6"], group_col: null },
+    analysisType: "friedman"
   }
 };
 
@@ -424,17 +508,19 @@ export async function mountStatLab(rootEl, config = {}) {
               <div class="sl-form-group">
                 <label for="sl-analysis-select" style="font-size:12px;font-weight:600;color:var(--sl-ink);margin-bottom:4px;display:block;">Tujuan Uji Statistik:</label>
                 <select class="sl-select" id="sl-analysis-select" style="width:100%;font-size:13px;padding:6px 10px;">
-                  <optgroup label="Statistika Dasar &amp; Asumsi">
+                  <optgroup label="Statistika Parametrik Dasar &amp; Asumsi">
                     <option value="descriptive" selected>Statistik Deskriptif &amp; Uji Asumsi</option>
-                  </optgroup>
-                  <optgroup label="Uji Komparasi Rata-rata">
-                    <option value="independent_t">Uji-t Dua Sampel Independen</option>
+                    <option value="independent_t">Uji-t Dua Sampel Independen (Student/Welch)</option>
                     <option value="paired_t">Uji-t Berpasangan (Sebelum vs Sesudah)</option>
-                  </optgroup>
-                  <optgroup label="Analisis Varians (ANOVA) &amp; Post Hoc">
                     <option value="oneway_anova">ANOVA Satu Arah &amp; Post Hoc (Tukey/Duncan)</option>
                     <option value="twoway_anova">ANOVA Dua Arah (Faktorial)</option>
-                    <option value="repeated_measures">Repeated Measures ANOVA</option>
+                    <option value="repeated_measures">Repeated Measures ANOVA (Greenhouse-Geisser)</option>
+                  </optgroup>
+                  <optgroup label="Uji Non-Parametrik Lengkap (Bebas Distribusi)">
+                    <option value="kruskal_wallis">Uji Kruskal-Wallis &amp; Post-Hoc Dunn (Alternatif ANOVA)</option>
+                    <option value="mann_whitney">Uji Mann-Whitney U (Alternatif Indep. t-test)</option>
+                    <option value="wilcoxon_signed">Uji Wilcoxon Bertanda (Alternatif Paired t-test)</option>
+                    <option value="friedman">Uji Friedman (Alternatif Repeated Measures)</option>
                   </optgroup>
                   <optgroup label="Regresi &amp; Kurva Non-Linier">
                     <option value="curve_estimation">Regresi &amp; Estimasi Kurva (Linier, Kuadratik, Power, Eksponensial, Logaritmik)</option>

@@ -225,6 +225,40 @@ export function renderAnalysisResult(containerEl, result, options = {}) {
     `;
   }
 
+  // Smart Recommendation & Switch to Non-Parametric counterpart if assumptions violated
+  if (!assumptionsPassed) {
+    let altAnalysisKey = null;
+    let altAnalysisLabel = null;
+    const aType = meta.analysis_type;
+
+    if (aType === "oneway_anova" || aType === "anova") {
+      altAnalysisKey = "kruskal_wallis";
+      altAnalysisLabel = isId ? "⚡ Beralih ke Uji Kruskal-Wallis (Non-Parametrik)" : "⚡ Switch to Kruskal-Wallis Test (Non-Parametric)";
+    } else if (aType === "independent_t" || aType === "ttest_indep") {
+      altAnalysisKey = "mann_whitney";
+      altAnalysisLabel = isId ? "⚡ Beralih ke Uji Mann-Whitney U (Non-Parametrik)" : "⚡ Switch to Mann-Whitney U Test (Non-Parametric)";
+    } else if (aType === "paired_t" || aType === "ttest_paired") {
+      altAnalysisKey = "wilcoxon_signed";
+      altAnalysisLabel = isId ? "⚡ Beralih ke Uji Wilcoxon Bertanda (Non-Parametrik)" : "⚡ Switch to Wilcoxon Signed-Rank Test (Non-Parametric)";
+    } else if (aType === "repeated_measures") {
+      altAnalysisKey = "friedman";
+      altAnalysisLabel = isId ? "⚡ Beralih ke Uji Friedman (Non-Parametrik)" : "⚡ Switch to Friedman Test (Non-Parametric)";
+    }
+
+    if (altAnalysisKey) {
+      html += `
+        <div style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(27, 54, 93, 0.2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:12px;color:var(--sl-crimson);font-weight:600;">
+            ${isId ? "💡 Rekomendasi: Data melanggar asumsi normalitas/homogenitas." : "💡 Recommendation: Data violates parametric assumptions."}
+          </span>
+          <button type="button" class="sl-btn sl-btn-secondary sl-btn-switch-nonparam" data-target-analysis="${altAnalysisKey}" style="font-size:12px;padding:4px 10px;cursor:pointer;font-weight:600;color:var(--sl-ink);background:#FFF;border:1px solid var(--sl-ink);border-radius:4px;">
+            ${escapeHtml(altAnalysisLabel)}
+          </button>
+        </div>
+      `;
+    }
+  }
+
   html += `</div></div>`;
 
   // =========================================================================
@@ -609,6 +643,25 @@ function _attachResultEvents(containerEl, result, options = {}) {
         const rows = tbl.rows[lang] || tbl.rows.id || tbl.rows.en || [];
         const csv = serializeTableDelimited(headers, rows, lang, "csv");
         downloadFile(`${tbl.id || 'table'}_detail.csv`, csv);
+      }
+    };
+  }
+
+  // Switch to Non-Parametric counterpart button
+  const switchNonparamBtns = containerEl.querySelectorAll(".sl-btn-switch-nonparam");
+  for (const btn of switchNonparamBtns) {
+    btn.onclick = () => {
+      const targetKey = btn.getAttribute("data-target-analysis");
+      if (typeof options.onSwitchAnalysis === "function") {
+        options.onSwitchAnalysis(targetKey);
+      } else {
+        const sel = document.getElementById("sl-analysis-select");
+        if (sel) {
+          sel.value = targetKey;
+          sel.dispatchEvent(new Event("change"));
+          const runBtn = document.getElementById("sl-btn-run-analysis");
+          if (runBtn) runBtn.click();
+        }
       }
     };
   }
