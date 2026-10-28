@@ -778,3 +778,148 @@ body.sl-standalone .sl-report-item-actions {
   gap: 6px;
 }
 
+/* ==========================================================================
+   Aqua Tools Workspace Layout & Template Guide
+   ========================================================================== */
+
+.sl-app .sl-workspace-grid,
+body.sl-standalone .sl-workspace-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .sl-app .sl-workspace-grid,
+  body.sl-standalone .sl-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sl-app .sl-control-panel,
+body.sl-standalone .sl-control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sl-app .sl-panel-card,
+body.sl-standalone .sl-panel-card {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-md);
+  padding: 16px;
+  box-shadow: var(--sl-shadow-sm);
+}
+
+.sl-app .sl-panel-card-title,
+body.sl-standalone .sl-panel-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sl-ink);
+  margin-top: 0;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sl-app .sl-template-card,
+body.sl-standalone .sl-template-card {
+  background: #F4F7FB;
+  border: 1px solid #D0DBEA;
+  border-left: 3px solid #0284C7;
+  border-radius: var(--sl-radius-sm);
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.sl-app .sl-template-header,
+body.sl-standalone .sl-template-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0369A1;
+  margin-bottom: 4px;
+}
+
+.sl-app .sl-template-badge,
+body.sl-standalone .sl-template-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0C4A6E;
+  background: #E0F2FE;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.sl-app .sl-template-desc,
+body.sl-standalone .sl-template-desc {
+  font-size: 12px;
+  color: var(--sl-ink-subtle);
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.sl-app .sl-template-preview-box,
+body.sl-standalone .sl-template-preview-box {
+  background: #FFFFFF;
+  border: 1px solid var(--sl-border);
+  border-radius: 4px;
+  overflow-x: auto;
+  max-height: 140px;
+  margin-bottom: 12px;
+}
+
+.sl-app .sl-template-preview-table,
+body.sl-standalone .sl-template-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-family: var(--sl-font-mono);
+}
+
+.sl-app .sl-template-preview-table th,
+body.sl-standalone .sl-template-preview-table th {
+  background: #F8FAFC;
+  color: var(--sl-ink);
+  font-weight: 600;
+  padding: 4px 6px;
+  border: 1px solid #E2E8F0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sl-app .sl-template-preview-table td,
+body.sl-standalone .sl-template-preview-table td {
+  padding: 3px 6px;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.sl-app .sl-btn-aqua,
+body.sl-standalone .sl-btn-aqua {
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.sl-app .sl-btn-aqua:hover,
+body.sl-standalone .sl-btn-aqua:hover {
+  background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
+  color: #FFFFFF;
+}
+
+.sl-app .sl-btn-block,
+body.sl-standalone .sl-btn-block {
+  width: 100%;
+  justify-content: center;
+  display: flex;
+}
+
