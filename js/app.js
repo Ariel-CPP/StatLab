@@ -382,7 +382,7 @@ export async function mountStatLab(rootEl, config = {}) {
   rootEl.innerHTML = `
     <header class="sl-navbar">
       <div class="sl-nav-brand">
-        <img src="./assets/icon-192.svg" alt="StatLab Emblem">
+        <img src="./assets/logo.png" alt="StatLab Gold Emblem" class="sl-nav-logo">
         <h1 class="sl-nav-title">StatLab</h1>
         <span class="sl-engine-badge" id="sl-engine-badge">&#9679; Memuat webR...</span>
       </div>
