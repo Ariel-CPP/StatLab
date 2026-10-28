@@ -29,7 +29,10 @@ sl_dispatch <- function(action, payload = list()) {
         "descriptive", "oneway_anova", "anova", "twoway_anova",
         "independent_t", "paired_t", "regression", "curve_estimation", "chisquare_indep",
         "repeated_measures", "manova", "kaplan_meier", "pca_hca",
-        "kruskal_wallis", "mann_whitney", "wilcoxon_signed", "friedman"
+        "kruskal_wallis", "mann_whitney", "wilcoxon_signed", "friedman",
+        "rcbd", "rakl", "split_plot",
+        "probit", "probit_lc50", "bioassay_lc50",
+        "binary_logistic", "logistic", "correlation_matrix", "corr_matrix"
       )),
       recommended_packages = list(
         survival = nzchar(system.file(package = "survival")),
@@ -81,6 +84,16 @@ sl_dispatch <- function(action, payload = list()) {
       wilcoxon_signed   = sl_analyze_wilcoxon_signed(df, opts),
       wilcoxon_paired   = sl_analyze_wilcoxon_signed(df, opts),
       friedman          = sl_analyze_friedman(df, opts),
+      rcbd              = sl_analyze_rcbd(df, opts),
+      rakl              = sl_analyze_rcbd(df, opts),
+      split_plot        = sl_analyze_split_plot(df, opts),
+      probit            = sl_analyze_probit_lc50(df, opts),
+      probit_lc50       = sl_analyze_probit_lc50(df, opts),
+      bioassay_lc50     = sl_analyze_probit_lc50(df, opts),
+      binary_logistic   = sl_analyze_binary_logistic(df, opts),
+      logistic          = sl_analyze_binary_logistic(df, opts),
+      correlation_matrix = sl_analyze_correlation_matrix(df, opts),
+      corr_matrix       = sl_analyze_correlation_matrix(df, opts),
       stop(sprintf("Unsupported `analysis_type`: %s", analysis_type))
     )
     return(sl_to_json(res))

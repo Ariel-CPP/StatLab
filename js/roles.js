@@ -169,6 +169,56 @@ export const ANALYSIS_SCHEMAS = {
     allowedModes: ["wide"],
     minNumericCols: 2,
     supportsGrouping: false
+  },
+  rcbd: {
+    name: { id: "RAKL / RCBD (Rancangan Acak Kelompok)", en: "RCBD (Randomized Complete Block Design)" },
+    description: {
+      id: "Rancangan acak kelompok lengkap dengan uji pengaruh perlakuan, efisiensi blok, KK, dan BNT / Tukey.",
+      en: "Randomized complete block design evaluating treatment, block effects, CV, and LSD / Tukey post-hoc."
+    },
+    allowedModes: ["wide", "long"],
+    minNumericCols: 1,
+    supportsGrouping: true
+  },
+  split_plot: {
+    name: { id: "Rancangan Petak Terbagi (Split-Plot)", en: "Split-Plot Design" },
+    description: {
+      id: "Rancangan petak terbagi dengan stratifikasi galat: Petak Utama (Galat a), Anak Petak & Interaksi (Galat b).",
+      en: "Split-plot design with stratified error terms: Main Plot (Error a), Sub Plot & Interaction (Error b)."
+    },
+    allowedModes: ["long"],
+    minNumericCols: 1,
+    supportsGrouping: true
+  },
+  probit_lc50: {
+    name: { id: "Bioassay & Dosis-Respon (LC50 / LD50)", en: "Bioassay & Dose-Response (LC50 / LD50)" },
+    description: {
+      id: "Analisis Probit / Logit regresi binomial untuk estimasi LC10, LC50, LC90 dengan 95% selang kepercayaan.",
+      en: "Probit / Logit binomial regression for LC10, LC50, LC90 lethal concentration estimation with 95% CI."
+    },
+    allowedModes: ["wide", "long"],
+    minNumericCols: 2,
+    supportsGrouping: false
+  },
+  binary_logistic: {
+    name: { id: "Regresi Logistik Biner", en: "Binary Logistic Regression" },
+    description: {
+      id: "Regresi logistik biner dengan Odds Ratio Exp(B), Hosmer-Lemeshow, Pseudo R², dan kurva ROC/AUC.",
+      en: "Binary logistic regression with Odds Ratio Exp(B), Hosmer-Lemeshow, Pseudo R², and ROC/AUC curve."
+    },
+    allowedModes: ["long"],
+    minNumericCols: 1,
+    supportsGrouping: true
+  },
+  correlation_matrix: {
+    name: { id: "Matriks Korelasi & Heatmap", en: "Correlation Matrix & Heatmap" },
+    description: {
+      id: "Matriks korelasi multivariat Pearson & Spearman dengan p-value dan heatmap divergensi 300-DPI.",
+      en: "Multivariate Pearson & Spearman correlation matrices with p-values and 300-DPI divergence heatmap."
+    },
+    allowedModes: ["wide"],
+    minNumericCols: 2,
+    supportsGrouping: false
   }
 };
 

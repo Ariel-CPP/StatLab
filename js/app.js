@@ -438,6 +438,107 @@ export const ANALYSIS_TEMPLATES = {
     ],
     roles: { mode: "wide", response_cols: ["Minggu_0", "Minggu_2", "Minggu_4", "Minggu_6"], group_col: null },
     analysisType: "friedman"
+  },
+  rcbd: {
+    id: "rcbd",
+    name: "RAKL / RCBD (Uji 3 Pakan dalam 4 Blok Kolam)",
+    category: "Rancangan Percobaan (Agronomi & Akuakultur)",
+    formatMode: "Format Lebar (Setiap Kolom adalah Blok / Kelompok)",
+    shortDesc: "Setiap baris adalah perlakuan (misal Formulasi Pakan A, B, C) dan setiap kolom adalah Blok (Kelompok Kolam 1..4). Menghitung ANOVA RAKL, KK galat, dan uji BNT.",
+    headers: ["Blok_1", "Blok_2", "Blok_3", "Blok_4"],
+    rows: [
+      ["24.5", "26.0", "25.2", "27.1"],
+      ["28.3", "30.1", "29.4", "31.2"],
+      ["33.8", "35.2", "34.6", "36.5"]
+    ],
+    roles: { mode: "wide", response_cols: ["Blok_1", "Blok_2", "Blok_3", "Blok_4"], group_col: null },
+    analysisType: "rcbd"
+  },
+  split_plot: {
+    id: "split_plot",
+    name: "Rancangan Petak Terbagi (Petak Utama Salinitas x Anak Petak Protein)",
+    category: "Rancangan Percobaan (Agronomi & Akuakultur)",
+    formatMode: "Format Panjang (Petak Utama, Anak Petak, Kelompok Blok, Respon)",
+    shortDesc: "Data faktorial tersarang petak terbagi dengan stratifikasi Galat (a) untuk petak utama dan Galat (b) untuk anak petak & interaksi.",
+    headers: ["Petak_Utama", "Anak_Petak", "Kelompok", "Pertumbuhan_g"],
+    rows: [
+      ["15_ppt", "Prot_28", "Blok_1", "2.1"],
+      ["15_ppt", "Prot_28", "Blok_2", "2.3"],
+      ["15_ppt", "Prot_28", "Blok_3", "2.0"],
+      ["15_ppt", "Prot_32", "Blok_1", "2.6"],
+      ["15_ppt", "Prot_32", "Blok_2", "2.8"],
+      ["15_ppt", "Prot_32", "Blok_3", "2.7"],
+      ["30_ppt", "Prot_28", "Blok_1", "2.9"],
+      ["30_ppt", "Prot_28", "Blok_2", "3.1"],
+      ["30_ppt", "Prot_28", "Blok_3", "3.0"],
+      ["30_ppt", "Prot_32", "Blok_1", "3.8"],
+      ["30_ppt", "Prot_32", "Blok_2", "4.0"],
+      ["30_ppt", "Prot_32", "Blok_3", "3.9"]
+    ],
+    roles: { mode: "long", response_cols: ["Pertumbuhan_g"], main_plot_col: "Petak_Utama", sub_plot_col: "Anak_Petak", block_col: "Kelompok" },
+    analysisType: "split_plot"
+  },
+  probit_lc50: {
+    id: "probit_lc50",
+    name: "Bioassay & Dosis-Respon (LC50 Toksisitas Logam Berat 96-Jam)",
+    category: "Toksikologi & Bioassay (LC50 / LD50)",
+    formatMode: "Format Kolom Dosis (Konsentrasi, Mortalitas, Total Uji)",
+    shortDesc: "Estimasi konsentrasi letal LC10, LC50, LC90 dengan selang kepercayaan 95% Teorema Fieller dan kurva respon sigmoidal.",
+    headers: ["Konsentrasi_ppm", "Mortalitas_Ekor", "Total_Uji"],
+    rows: [
+      ["0", "0", "20"],
+      ["10", "2", "20"],
+      ["25", "6", "20"],
+      ["50", "11", "20"],
+      ["100", "16", "20"],
+      ["200", "20", "20"]
+    ],
+    roles: { mode: "wide", response_cols: ["Konsentrasi_ppm", "Mortalitas_Ekor", "Total_Uji"], group_col: null },
+    analysisType: "probit_lc50"
+  },
+  binary_logistic: {
+    id: "binary_logistic",
+    name: "Regresi Logistik Biner (Prediktor DO & TAN terhadap Sintasan)",
+    category: "Regresi, Korelasi & Asosiasi",
+    formatMode: "Format Panjang (Kolom Status Biner 0/1 + Kolom Prediktor)",
+    shortDesc: "Estimasi Odds Ratio Exp(B), Hosmer-Lemeshow, Nagelkerke R², dan kurva ROC/AUC untuk klasifikasi probabilitas kelangsungan hidup.",
+    headers: ["Status_Sintasan", "DO_mgL", "TAN_ppm"],
+    rows: [
+      ["1", "6.5", "0.12"],
+      ["1", "6.0", "0.18"],
+      ["1", "5.8", "0.22"],
+      ["1", "5.5", "0.25"],
+      ["1", "5.2", "0.30"],
+      ["0", "4.5", "0.55"],
+      ["0", "4.2", "0.62"],
+      ["0", "3.8", "0.75"],
+      ["0", "3.5", "0.82"],
+      ["0", "3.2", "0.90"]
+    ],
+    roles: { mode: "long", response_cols: ["Status_Sintasan", "DO_mgL", "TAN_ppm"], group_col: null },
+    analysisType: "binary_logistic"
+  },
+  correlation_matrix: {
+    id: "correlation_matrix",
+    name: "Matriks Korelasi & Heatmap (5 Parameter Fisika-Kimia Air)",
+    category: "Regresi, Korelasi & Asosiasi",
+    formatMode: "Format Lebar (Multivariat Numerik)",
+    shortDesc: "Matriks korelasi Pearson/Spearman dengan p-value signifikansi dan visualisasi publikasi Heatmap bergradien biru-putih-merah.",
+    headers: ["DO", "pH", "Salinitas", "Suhu", "Amonia"],
+    rows: [
+      ["6.5", "7.8", "25.0", "28.5", "0.08"],
+      ["6.2", "7.7", "26.2", "29.0", "0.12"],
+      ["5.8", "7.6", "27.0", "29.5", "0.18"],
+      ["5.1", "7.4", "28.5", "30.2", "0.35"],
+      ["4.8", "7.2", "29.0", "31.0", "0.52"],
+      ["4.2", "7.0", "30.5", "31.5", "0.68"],
+      ["7.0", "8.0", "24.5", "28.0", "0.05"],
+      ["6.8", "7.9", "25.5", "28.2", "0.07"],
+      ["5.5", "7.5", "27.5", "29.8", "0.22"],
+      ["4.9", "7.3", "28.8", "30.5", "0.41"]
+    ],
+    roles: { mode: "wide", response_cols: ["DO", "pH", "Salinitas", "Suhu", "Amonia"], group_col: null },
+    analysisType: "correlation_matrix"
   }
 };
 
@@ -522,10 +623,19 @@ export async function mountStatLab(rootEl, config = {}) {
                     <option value="wilcoxon_signed">Uji Wilcoxon Bertanda (Alternatif Paired t-test)</option>
                     <option value="friedman">Uji Friedman (Alternatif Repeated Measures)</option>
                   </optgroup>
-                  <optgroup label="Regresi &amp; Kurva Non-Linier">
+                  <optgroup label="Regresi, Korelasi &amp; Asosiasi">
                     <option value="curve_estimation">Regresi &amp; Estimasi Kurva (Linier, Kuadratik, Power, Eksponensial, Logaritmik)</option>
                     <option value="regression">Regresi Linear Sederhana &amp; Korelasi</option>
+                    <option value="binary_logistic">Regresi Logistik Biner (Odds Ratio &amp; ROC Curve)</option>
+                    <option value="correlation_matrix">Matriks Korelasi Multivariat &amp; Heatmap</option>
                     <option value="chisquare_indep">Uji Chi-Square Independensi</option>
+                  </optgroup>
+                  <optgroup label="Rancangan Percobaan (Agronomi &amp; Akuakultur)">
+                    <option value="rcbd">RAKL / RCBD (Rancangan Acak Kelompok Lengkap)</option>
+                    <option value="split_plot">Rancangan Petak Terbagi (Split-Plot Design)</option>
+                  </optgroup>
+                  <optgroup label="Toksikologi &amp; Bioassay Dosis-Respon">
+                    <option value="probit_lc50">Bioassay Lethal Concentration (LC10, LC50, LC90 Probit &amp; Logit)</option>
                   </optgroup>
                   <optgroup label="Multivariat &amp; Survival (Roadmap Phase 3)">
                     <option value="manova">MANOVA (Multivariate ANOVA)</option>
