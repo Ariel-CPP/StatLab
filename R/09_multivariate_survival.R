@@ -236,39 +236,48 @@ sl_analyze_repeated_measures <- function(df, opts = list()) {
     )
   }
 
-  # Interpretation
-  eff_p <- if (eps_gg < 0.75) p_val_gg else p_val
-  interp_id <- if (eff_p < 0.05) {
-    sprintf(
-      "Analisis Repeated Measures ANOVA menunjukkan bahwa faktor waktu memberikan perubahan yang sangat nyata secara statistik terhadap respon pengamatan (F(%s, %s) = %s, p = %s; Partial η² = %s). Terdapat peningkatan rataan dari %s pada %s menjadi %s pada %s. Koreksi sferisitas Greenhouse-Geisser (ε = %s) memastikan hasil uji bebas dari bias korelasi antar-waktu.",
-      sl_fmt_num(df_time_gg, 1L, "id"), sl_fmt_num(df_err_gg, 1L, "id"),
-      sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(eff_p, "id"), sl_fmt_num(partial_eta_sq, 3L, "id"),
-      sl_fmt_num(time_means[1L], 2L, "id"), time_names[1L],
-      sl_fmt_num(time_means[k_time], 2L, "id"), time_names[k_time],
-      sl_fmt_num(eps_gg, 3L, "id")
-    )
-  } else {
-    sprintf(
-      "Analisis Repeated Measures ANOVA menunjukkan tidak terdapat perubahan yang signifikan secara statistik seiring berjalannya waktu (F = %s, p = %s; Partial η² = %s).",
-      sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(eff_p, "id"), sl_fmt_num(partial_eta_sq, 3L, "id")
-    )
+  # Warnings & Interpretation (Key Points)
+  warnings_id <- character(0)
+  warnings_en <- character(0)
+  if (eps_gg < 0.75) {
+    warnings_id <- c(warnings_id, sprintf("Asumsi sferisitas dilanggar (Greenhouse-Geisser epsilon = %s < 0.75). Derajat bebas dan p-value telah dikoreksi menggunakan penyesuaian Greenhouse-Geisser.", sl_fmt_num(eps_gg, 3L, "id")))
+    warnings_en <- c(warnings_en, sprintf("Sphericity assumption violated (Greenhouse-Geisser epsilon = %s < 0.75). Degrees of freedom and p-value were corrected using Greenhouse-Geisser adjustment.", sl_fmt_num(eps_gg, 3L, "en")))
   }
 
-  interp_en <- if (eff_p < 0.05) {
-    sprintf(
-      "Repeated measures ANOVA indicated a statistically significant effect of time on the response, F(%s, %s) = %s, p = %s, Partial η² = %s. The mean increased from %s at %s to %s at %s. Greenhouse-Geisser correction (ε = %s) verified robustness against sphericity departure.",
-      sl_fmt_num(df_time_gg, 1L, "en"), sl_fmt_num(df_err_gg, 1L, "en"),
-      sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(eff_p, "en"), sl_fmt_num(partial_eta_sq, 3L, "en"),
+  eff_p <- if (eps_gg < 0.75) p_val_gg else p_val
+  pts_id <- c(
+    if (eff_p < 0.05) {
+      sprintf("• **Efek Waktu**: Faktor waktu memberikan pengaruh yang sangat nyata secara statistik terhadap respon pengamatan (F(%s, %s) = %s, p = %s; Partial η² = %s).",
+        sl_fmt_num(df_time_gg, 1L, "id"), sl_fmt_num(df_err_gg, 1L, "id"),
+        sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(eff_p, "id"), sl_fmt_num(partial_eta_sq, 3L, "id"))
+    } else {
+      sprintf("• **Efek Waktu**: Tidak terdapat perubahan yang signifikan secara statistik seiring berjalannya waktu (F = %s, p = %s; Partial η² = %s).",
+        sl_fmt_num(f_val, 3L, "id"), sl_fmt_p(eff_p, "id"), sl_fmt_num(partial_eta_sq, 3L, "id"))
+    },
+    sprintf("• **Tren Rataan**: Rataan respon berkembang dari %s (%s) menjadi %s (%s).",
+      sl_fmt_num(time_means[1L], 2L, "id"), time_names[1L],
+      sl_fmt_num(time_means[k_time], 2L, "id"), time_names[k_time]),
+    sprintf("• **Koreksi Sferisitas**: Nilai estimasi Greenhouse-Geisser ε = %s digunakan untuk memastikan keabsahan inferensi terhadap korelasi antar-waktu.",
+      sl_fmt_num(eps_gg, 3L, "id"))
+  )
+  interp_id <- paste(pts_id, collapse = "\n")
+
+  pts_en <- c(
+    if (eff_p < 0.05) {
+      sprintf("• **Time Effect**: Time exerted a statistically significant effect on the response (F(%s, %s) = %s, p = %s, Partial η² = %s).",
+        sl_fmt_num(df_time_gg, 1L, "en"), sl_fmt_num(df_err_gg, 1L, "en"),
+        sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(eff_p, "en"), sl_fmt_num(partial_eta_sq, 3L, "en"))
+    } else {
+      sprintf("• **Time Effect**: No statistically significant time effect was observed (F = %s, p = %s, Partial η² = %s).",
+        sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(eff_p, "en"), sl_fmt_num(partial_eta_sq, 3L, "en"))
+    },
+    sprintf("• **Trajectory**: Mean response shifted from %s (%s) to %s (%s).",
       sl_fmt_num(time_means[1L], 2L, "en"), time_names[1L],
-      sl_fmt_num(time_means[k_time], 2L, "en"), time_names[k_time],
-      sl_fmt_num(eps_gg, 3L, "en")
-    )
-  } else {
-    sprintf(
-      "Repeated measures ANOVA revealed no statistically significant effect of time, F = %s, p = %s, Partial η² = %s.",
-      sl_fmt_num(f_val, 3L, "en"), sl_fmt_p(eff_p, "en"), sl_fmt_num(partial_eta_sq, 3L, "en")
-    )
-  }
+      sl_fmt_num(time_means[k_time], 2L, "en"), time_names[k_time]),
+    sprintf("• **Sphericity Correction**: Greenhouse-Geisser ε = %s ensures statistical inference remains robust against temporal correlation.",
+      sl_fmt_num(eps_gg, 3L, "en"))
+  )
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "repeated_measures",
@@ -306,7 +315,7 @@ sl_analyze_repeated_measures <- function(df, opts = list()) {
     ),
     plots = plots,
     interpretation = list(id = interp_id, en = interp_en),
-    warnings = list(id = sl_box_vec(character(0)), en = sl_box_vec(character(0)))
+    warnings = list(id = sl_box_vec(warnings_id), en = sl_box_vec(warnings_en))
   )
 }
 
@@ -353,6 +362,25 @@ sl_analyze_manova <- function(df, opts = list()) {
   # Fit MANOVA
   fit_manova <- stats::manova(mat_clean ~ grp_clean)
 
+  # Check rank of residuals to prevent crash on collinear variables
+  warnings_id <- character(0)
+  warnings_en <- character(0)
+  qr_resid <- qr(residuals(fit_manova))
+  r_rank <- qr_resid$rank
+  p_cols <- ncol(mat_clean)
+  manova_mat <- mat_clean
+
+  if (r_rank < p_cols) {
+    if (r_rank >= 1L) {
+      kept_idx <- qr_resid$pivot[seq_len(r_rank)]
+      dropped_cols <- colnames(mat_clean)[-kept_idx]
+      warnings_id <- c(warnings_id, sprintf("Variabel respon [%s] terdeteksi memiliki multikolinearitas sempurna (redundansi linier) dan diakomodasi melalui reduksi dimensi rank.", paste(dropped_cols, collapse = ", ")))
+      warnings_en <- c(warnings_en, sprintf("Response variables [%s] exhibit perfect collinearity and were handled via rank reduction.", paste(dropped_cols, collapse = ", ")))
+      manova_mat <- mat_clean[, kept_idx, drop = FALSE]
+      fit_manova <- stats::manova(manova_mat ~ grp_clean)
+    }
+  }
+
   # Extract 4 standard tests safely
   pillai <- tryCatch(summary(fit_manova, test = "Pillai"), error = function(e) NULL)
   wilks  <- tryCatch(summary(fit_manova, test = "Wilks"), error = function(e) NULL)
@@ -374,9 +402,6 @@ sl_analyze_manova <- function(df, opts = list()) {
   r_stat <- if (!is.null(roy)) as.double(roy$stats[1L, "Roy"]) else NA_real_
   r_f    <- if (!is.null(roy)) as.double(roy$stats[1L, "approx F"]) else NA_real_
   r_pval <- if (!is.null(roy)) as.double(roy$stats[1L, "Pr(>F)"]) else NA_real_
-
-  # Univariate ANOVAs per variable
-  aov_sum <- tryCatch(summary.aov(fit_manova), error = function(e) list())
 
   # Table 1: MANOVA Summary
   hdr_man_id <- sl_box_vec(c("Uji Multivariat", "Nilai Statistik", "Approx F", "db Num", "db Denom", "P-Value", "Signifikansi"))
@@ -428,12 +453,20 @@ sl_analyze_manova <- function(df, opts = list()) {
   rows_uni_en <- list()
   for (v_idx in seq_along(resp_cols)) {
     v_nm <- resp_cols[v_idx]
-    sub_aov <- aov_sum[[v_idx]]
-    ss_tr <- sub_aov[["Sum Sq"]][1L]
-    ss_e  <- sub_aov[["Sum Sq"]][2L]
-    f_u   <- sub_aov[["F value"]][1L]
-    p_u   <- sub_aov[["Pr(>F)"]][1L]
-    sig_u <- if (p_u < 0.01) "**" else if (p_u < 0.05) "*" else "tn"
+    sub_aov <- tryCatch(summary(stats::aov(mat_clean[, v_idx] ~ grp_clean))[[1L]], error = function(e) NULL)
+    if (!is.null(sub_aov) && nrow(sub_aov) >= 2L) {
+      ss_tr <- sub_aov[["Sum Sq"]][1L]
+      ss_e  <- sub_aov[["Sum Sq"]][2L]
+      f_u   <- sub_aov[["F value"]][1L]
+      p_u   <- sub_aov[["Pr(>F)"]][1L]
+      sig_u <- if (is.finite(p_u) && p_u < 0.01) "**" else if (is.finite(p_u) && p_u < 0.05) "*" else "tn"
+    } else {
+      ss_tr <- NA_real_
+      ss_e  <- NA_real_
+      f_u   <- NA_real_
+      p_u   <- NA_real_
+      sig_u <- "tn"
+    }
 
     rows_uni_id[[v_idx]] <- sl_box_vec(c(v_nm, sl_fmt_num(ss_tr, 4L, "id"), sl_fmt_num(ss_e, 4L, "id"), sl_fmt_num(f_u, 4L, "id"), sl_fmt_p(p_u, "id"), sig_u))
     rows_uni_en[[v_idx]] <- sl_box_vec(c(v_nm, sl_fmt_num(ss_tr, 4L, "en"), sl_fmt_num(ss_e, 4L, "en"), sl_fmt_num(f_u, 4L, "en"), sl_fmt_p(p_u, "en"), if (sig_u == "tn") "ns" else sig_u))
@@ -447,31 +480,38 @@ sl_analyze_manova <- function(df, opts = list()) {
     note = list(id = "Hasil ANOVA univariat terpisah untuk tiap variabel respon.", en = "Separate univariate ANOVA results for each dependent variable.")
   )
 
-  interp_id <- if (p_pval < 0.05) {
-    sprintf(
-      "Uji MANOVA menunjukkan bahwa kelompok perlakuan berpengaruh signifikan secara multivariat terhadap kombinasi variabel respon (Pillai's Trace = %s, approx F = %s, p = %s; Wilks' Lambda = %s, p = %s). Perbedaan simultan ini terkonfirmasi pada pengujian univariat tindak lanjut.",
-      sl_fmt_num(p_stat, 3L, "id"), sl_fmt_num(p_f, 3L, "id"), sl_fmt_p(p_pval, "id"),
-      sl_fmt_num(w_stat, 3L, "id"), sl_fmt_p(w_pval, "id")
-    )
-  } else {
-    sprintf(
-      "Uji MANOVA menunjukkan tidak terdapat perbedaan multivariat yang signifikan secara simultan antar kelompok perlakuan (Pillai's Trace = %s, approx F = %s, p = %s).",
-      sl_fmt_num(p_stat, 3L, "id"), sl_fmt_num(p_f, 3L, "id"), sl_fmt_p(p_pval, "id")
-    )
-  }
+  # Format Key Points (Poin Kunci / Key Points)
+  pts_id <- c(
+    if (is.finite(p_pval) && p_pval < 0.05) {
+      sprintf("• **Signifikansi Multivariat**: Perlakuan berpengaruh sangat nyata secara multivariat terhadap kombinasi variabel respon (Pillai's Trace = %s, approx F = %s, p = %s; Wilks' Lambda = %s, p = %s).",
+        sl_fmt_num(p_stat, 3L, "id"), sl_fmt_num(p_f, 3L, "id"), sl_fmt_p(p_pval, "id"),
+        sl_fmt_num(w_stat, 3L, "id"), sl_fmt_p(w_pval, "id"))
+    } else if (is.finite(p_pval)) {
+      sprintf("• **Signifikansi Multivariat**: Tidak terdapat perbedaan multivariat yang signifikan secara simultan antar kelompok perlakuan (Pillai's Trace = %s, approx F = %s, p = %s).",
+        sl_fmt_num(p_stat, 3L, "id"), sl_fmt_num(p_f, 3L, "id"), sl_fmt_p(p_pval, "id"))
+    } else {
+      "• **Signifikansi Multivariat**: Uji multivariat simultan dievaluasi melalui reduksi rank akibat multikolinearitas variabel. Amati hasil ANOVA univariat terpisah di bawah."
+    },
+    sprintf("• **Uji Lanjut Univariat**: ANOVA univariat dievaluasi secara terpisah untuk %d variabel respon (%s) guna mendeteksi parameter spesifik yang paling responsif.",
+      length(resp_cols), paste(resp_cols, collapse = ", "))
+  )
+  interp_id <- paste(pts_id, collapse = "\n")
 
-  interp_en <- if (p_pval < 0.05) {
-    sprintf(
-      "MANOVA indicated a statistically significant multivariate effect of treatments across the combined response variables, Pillai's Trace = %s, approx F = %s, p = %s, Wilks' Lambda = %s, p = %s.",
-      sl_fmt_num(p_stat, 3L, "en"), sl_fmt_num(p_f, 3L, "en"), sl_fmt_p(p_pval, "en"),
-      sl_fmt_num(w_stat, 3L, "en"), sl_fmt_p(w_pval, "en")
-    )
-  } else {
-    sprintf(
-      "MANOVA indicated no statistically significant multivariate difference across treatment groups, Pillai's Trace = %s, approx F = %s, p = %s.",
-      sl_fmt_num(p_stat, 3L, "en"), sl_fmt_num(p_f, 3L, "en"), sl_fmt_p(p_pval, "en")
-    )
-  }
+  pts_en <- c(
+    if (is.finite(p_pval) && p_pval < 0.05) {
+      sprintf("• **Multivariate Significance**: Treatments exerted a statistically significant multivariate effect on combined responses (Pillai's Trace = %s, approx F = %s, p = %s; Wilks' Lambda = %s, p = %s).",
+        sl_fmt_num(p_stat, 3L, "en"), sl_fmt_num(p_f, 3L, "en"), sl_fmt_p(p_pval, "en"),
+        sl_fmt_num(w_stat, 3L, "en"), sl_fmt_p(w_pval, "en"))
+    } else if (is.finite(p_pval)) {
+      sprintf("• **Multivariate Significance**: No statistically significant multivariate difference was found across groups (Pillai's Trace = %s, approx F = %s, p = %s).",
+        sl_fmt_num(p_stat, 3L, "en"), sl_fmt_num(p_f, 3L, "en"), sl_fmt_p(p_pval, "en"))
+    } else {
+      "• **Multivariate Significance**: Evaluated via rank reduction due to collinearity. Refer to separate follow-up univariate ANOVAs below."
+    },
+    sprintf("• **Univariate Follow-Up**: Separate univariate ANOVAs evaluated across %d dependent variables (%s).",
+      length(resp_cols), paste(resp_cols, collapse = ", "))
+  )
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "manova",
@@ -505,7 +545,7 @@ sl_analyze_manova <- function(df, opts = list()) {
     ),
     plots = list(),
     interpretation = list(id = interp_id, en = interp_en),
-    warnings = list(id = sl_box_vec(character(0)), en = sl_box_vec(character(0)))
+    warnings = list(id = sl_box_vec(warnings_id), en = sl_box_vec(warnings_en))
   )
 }
 
@@ -621,29 +661,34 @@ sl_analyze_kaplan_meier <- function(df, opts = list()) {
     )
   }
 
-  interp_id <- if (p_lr < 0.05) {
-    sprintf(
-      "Analisis Kaplan-Meier dan uji Log-Rank menunjukkan terdapat perbedaan laju ketahanan hidup yang signifikan secara statistik antar kelompok perlakuan (χ²(%d) = %s, p = %s). Perlakuan memberikan tingkat proteksi/sintasan yang berbeda nyata.",
-      df_lr, sl_fmt_num(chi_lr, 3L, "id"), sl_fmt_p(p_lr, "id")
-    )
-  } else {
-    sprintf(
-      "Analisis Kaplan-Meier dan uji Log-Rank menunjukkan tidak terdapat perbedaan ketahanan hidup yang signifikan antar kelompok (χ²(%d) = %s, p = %s).",
-      df_lr, sl_fmt_num(chi_lr, 3L, "id"), sl_fmt_p(p_lr, "id")
-    )
-  }
+  warnings_id <- character(0)
+  warnings_en <- character(0)
 
-  interp_en <- if (p_lr < 0.05) {
-    sprintf(
-      "Kaplan-Meier survival analysis and Log-Rank test indicated a statistically significant difference in survival rates across groups, χ²(%d) = %s, p = %s.",
-      df_lr, sl_fmt_num(chi_lr, 3L, "en"), sl_fmt_p(p_lr, "en")
-    )
-  } else {
-    sprintf(
-      "Kaplan-Meier survival analysis indicated no statistically significant difference in survival across groups, χ²(%d) = %s, p = %s.",
-      df_lr, sl_fmt_num(chi_lr, 3L, "en"), sl_fmt_p(p_lr, "en")
-    )
-  }
+  pts_id <- c(
+    if (p_lr < 0.05) {
+      sprintf("• **Perbedaan Kurva Survival**: Uji Log-Rank membuktikan adanya perbedaan laju ketahanan hidup yang signifikan secara statistik antar kelompok perlakuan (χ²(%d) = %s, p = %s).",
+        df_lr, sl_fmt_num(chi_lr, 3L, "id"), sl_fmt_p(p_lr, "id"))
+    } else {
+      sprintf("• **Perbedaan Kurva Survival**: Uji Log-Rank menunjukkan tidak terdapat perbedaan ketahanan hidup yang signifikan secara statistik antar kelompok perlakuan (χ²(%d) = %s, p = %s).",
+        df_lr, sl_fmt_num(chi_lr, 3L, "id"), sl_fmt_p(p_lr, "id"))
+    },
+    sprintf("• **Kohort Pengamatan**: Melibatkan %d kelompok perlakuan (%s) dengan total %d spesimen/individu terobservasi.",
+      length(grp_levs), paste(grp_levs, collapse = ", "), length(valid_idx))
+  )
+  interp_id <- paste(pts_id, collapse = "\n")
+
+  pts_en <- c(
+    if (p_lr < 0.05) {
+      sprintf("• **Survival Curve Comparison**: Log-Rank test indicated a statistically significant difference in survival distributions across groups (χ²(%d) = %s, p = %s).",
+        df_lr, sl_fmt_num(chi_lr, 3L, "en"), sl_fmt_p(p_lr, "en"))
+    } else {
+      sprintf("• **Survival Curve Comparison**: Log-Rank test revealed no statistically significant difference in survival across groups (χ²(%d) = %s, p = %s).",
+        df_lr, sl_fmt_num(chi_lr, 3L, "en"), sl_fmt_p(p_lr, "en"))
+    },
+    sprintf("• **Cohort Summary**: %d treatment groups (%s) evaluated across %d total subjects.",
+      length(grp_levs), paste(grp_levs, collapse = ", "), length(valid_idx))
+  )
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "kaplan_meier",
@@ -677,7 +722,7 @@ sl_analyze_kaplan_meier <- function(df, opts = list()) {
     ),
     plots = plots,
     interpretation = list(id = interp_id, en = interp_en),
-    warnings = list(id = sl_box_vec(character(0)), en = sl_box_vec(character(0)))
+    warnings = list(id = sl_box_vec(warnings_id), en = sl_box_vec(warnings_en))
   )
 }
 
@@ -793,21 +838,30 @@ sl_analyze_pca_hca <- function(df, opts = list()) {
     )
   }
 
-  interp_id <- sprintf(
-    "Analisis Komponen Utama (PCA) menunjukkan bahwa %d komponen utama pertama berhasil mereduksi dimensi data dan menjelaskan %s%% total variasi. Komponen PC1 menyumbang %s%% variasi dan PC2 menyumbang %s%%.",
-    min(2L, n_pcs),
-    sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id"),
-    sl_fmt_num(pca_pcts[1L], 2L, "id"),
-    if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "id") else "0"
-  )
+  warnings_id <- character(0)
+  warnings_en <- character(0)
 
-  interp_en <- sprintf(
-    "Principal Component Analysis (PCA) demonstrated that the first %d components accounted for %s%% of the total multivariate variation. PC1 explained %s%% and PC2 explained %s%%.",
-    min(2L, n_pcs),
-    sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en"),
-    sl_fmt_num(pca_pcts[1L], 2L, "en"),
-    if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "en") else "0"
+  pts_id <- c(
+    sprintf("• **Proporsi Variansi Terjelaskan**: Dua komponen utama pertama berhasil mereduksi dimensi data dan menjelaskan %s%% dari total variansi multivariat.",
+      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "id")),
+    sprintf("• **Kontribusi Komponen**: PC1 menyumbang %s%% variasi dan PC2 menyumbang %s%% variasi.",
+      sl_fmt_num(pca_pcts[1L], 2L, "id"),
+      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "id") else "0"),
+    sprintf("• **Proyeksi Loading & Sampel**: Biplot memetakan korelasi antar-%d variabel dan sebaran kedekatan profil antar-sampel.",
+      length(num_cols))
   )
+  interp_id <- paste(pts_id, collapse = "\n")
+
+  pts_en <- c(
+    sprintf("• **Explained Variance**: The first two principal components capture %s%% of the total multivariate variation.",
+      sl_fmt_num(pca_cums[min(2L, n_pcs)], 2L, "en")),
+    sprintf("• **Component Breakdown**: PC1 accounts for %s%% and PC2 accounts for %s%% of the total variance.",
+      sl_fmt_num(pca_pcts[1L], 2L, "en"),
+      if (n_pcs >= 2L) sl_fmt_num(pca_pcts[2L], 2L, "en") else "0"),
+    sprintf("• **Biplot Interpretation**: Biplot projects loading relationships across %d variables and sample clustering.",
+      length(num_cols))
+  )
+  interp_en <- paste(pts_en, collapse = "\n")
 
   meta <- list(
     analysis_type = "pca_hca",
@@ -841,6 +895,6 @@ sl_analyze_pca_hca <- function(df, opts = list()) {
     ),
     plots = plots,
     interpretation = list(id = interp_id, en = interp_en),
-    warnings = list(id = sl_box_vec(character(0)), en = sl_box_vec(character(0)))
+    warnings = list(id = sl_box_vec(warnings_id), en = sl_box_vec(warnings_en))
   )
 }

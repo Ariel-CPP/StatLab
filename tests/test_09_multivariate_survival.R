@@ -50,6 +50,17 @@ assert_true(res_manova$main$pillai > 0.8, "Strong Pillai trace")
 assert_true(res_manova$main$p_value < 0.001, "MANOVA p-value highly significant")
 assert_true(length(res_manova$tables_apa) >= 2L, "MANOVA has at least 2 tables (Summary + Univariate)")
 
+# Collinear test (rank deficiency safeguard)
+df_collinear <- data.frame(
+  Perlakuan = factor(rep(c("Kontrol", "Pakan_A", "Pakan_B"), each = 3)),
+  Bobot_g = c(12.4, 11.8, 12.1, 15.2, 14.8, 15.5, 16.8, 16.2, 16.5),
+  Panjang_cm = c(10.2, 9.9, 10.1, 11.5, 11.2, 11.6, 12.1, 11.9, 12.0),
+  Biomassa_g = c(12.4, 11.8, 12.1, 15.2, 14.8, 15.5, 16.8, 16.2, 16.5) * 10
+)
+res_collinear <- sl_analyze_manova(df_collinear, list(alpha = 0.05))
+assert_true(!is.null(res_collinear$main$pillai), "Pillai evaluated via rank reduction on collinear data")
+assert_true(length(res_collinear$tables_apa) >= 2L, "Collinear data tables generated")
+
 # ---------------------------------------------------------------------------
 # Test 3: Kaplan-Meier Survival Analysis & Log-Rank Test
 # ---------------------------------------------------------------------------
