@@ -67,6 +67,7 @@ sl_dispatch <- function(action, payload = list()) {
       ttest_paired      = sl_analyze_ttest_paired(df, opts),
       repeated_measures = sl_analyze_repeated_measures(df, opts),
       regression        = sl_analyze_regression(df, opts),
+      curve_estimation  = sl_analyze_curve_estimation(df, opts),
       chisquare_indep   = sl_analyze_chisq(df, opts),
       chisq             = sl_analyze_chisq(df, opts),
       manova            = sl_analyze_manova(df, opts),

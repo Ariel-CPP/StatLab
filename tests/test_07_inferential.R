@@ -70,9 +70,37 @@ assert_near(res_chi$main$p_value, as.double(ref_chi$p.value), 1e-8, "Chi-Square 
 assert_true(length(res_chi$tables_apa) >= 1L, "Chi-Square summary table present")
 
 # ---------------------------------------------------------------------------
-# Test 4: Dispatcher Routing for all new analyses
+# Test 4: Curve Estimation & Non-Linear Regression
 # ---------------------------------------------------------------------------
-cat("--- 4. Testing Dispatcher Routing ---\n")
+cat("--- 4. Testing Curve Estimation & Non-Linear Models ---\n")
+
+df_quad <- data.frame(
+  Dosis = c(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0),
+  Pertumbuhan = c(1.2, 2.1, 2.8, 3.1, 3.0, 2.5, 1.7)
+)
+
+res_curve_quad <- sl_analyze_curve_estimation(df_quad, list(alpha = 0.05, include_plots = TRUE, model = "all"))
+assert_true(!is.null(res_curve_quad$main$best_model), "Best model identified")
+assert_true(res_curve_quad$main$best_model == "quadratic", "Quadratic identified as best model for parabolic data")
+assert_true(!is.null(res_curve_quad$main$vertex), "Vertex optimum calculated")
+assert_true(res_curve_quad$main$vertex$x_opt > 3.5 && res_curve_quad$main$vertex$x_opt < 4.5, "Optimum X vertex in expected range")
+assert_true(res_curve_quad$main$vertex$nature == "maximum", "Vertex is maximum / peak")
+assert_true(length(res_curve_quad$tables_apa) >= 3L, "At least 3 APA tables generated")
+
+# Allometric Power test
+df_allo <- data.frame(
+  Panjang = c(10, 12, 14, 16, 18, 20),
+  Bobot = c(15.2, 25.8, 41.2, 61.5, 87.0, 119.5)
+)
+res_curve_allo <- sl_analyze_curve_estimation(df_allo, list(alpha = 0.05, include_plots = FALSE, model = "power"))
+assert_true(!is.null(res_curve_allo$main$allometric), "Allometric test evaluated")
+assert_true(abs(res_curve_allo$main$allometric$b - 3.0) < 0.2, "Allometric exponent b near 3.0")
+assert_true(!is.null(res_curve_allo$main$allometric$p_value), "Allometric p-value present")
+
+# ---------------------------------------------------------------------------
+# Test 5: Dispatcher Routing for all inferential analyses
+# ---------------------------------------------------------------------------
+cat("--- 5. Testing Dispatcher Routing ---\n")
 
 disp_2way <- sl_dispatch("run_analysis", list(analysis_type = "twoway_anova", data = df_2way, opts = list(include_plots = FALSE)))
 assert_true(is.character(disp_2way), "twoway_anova dispatched")
@@ -82,5 +110,8 @@ assert_true(is.character(disp_reg), "regression dispatched")
 
 disp_chi <- sl_dispatch("run_analysis", list(analysis_type = "chisquare_indep", data = df_chi, opts = list(include_plots = FALSE)))
 assert_true(is.character(disp_chi), "chisquare_indep dispatched")
+
+disp_curve <- sl_dispatch("run_analysis", list(analysis_type = "curve_estimation", data = df_quad, opts = list(include_plots = FALSE)))
+assert_true(is.character(disp_curve), "curve_estimation dispatched")
 
 cat("=== All Inferential Engine Tests Passed ===\n")
