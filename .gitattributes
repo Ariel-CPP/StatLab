@@ -1,0 +1,3 @@
+# Vendor directories
+vendor/** -diff
+vendor/** linguist-vendored

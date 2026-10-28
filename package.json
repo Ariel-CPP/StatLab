@@ -1,0 +1,10 @@
+{
+  "name": "statlab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "vendor:fetch": "node tools/vendor-fetch.mjs",
+    "test:webr": "node tests/test_webr_parity.mjs"
+  }
+}

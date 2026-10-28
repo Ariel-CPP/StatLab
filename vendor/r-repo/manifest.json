@@ -1,0 +1,30 @@
+{
+  "r_version": "4.5",
+  "packages": [
+    {
+      "name": "lattice",
+      "file": "lattice_0.22-9.tgz",
+      "generic": "lattice.tgz"
+    },
+    {
+      "name": "Matrix",
+      "file": "Matrix_1.7-5.tgz",
+      "generic": "Matrix.tgz"
+    },
+    {
+      "name": "survival",
+      "file": "survival_3.8-6.tgz",
+      "generic": "survival.tgz"
+    },
+    {
+      "name": "cluster",
+      "file": "cluster_2.1.8.2.tgz",
+      "generic": "cluster.tgz"
+    },
+    {
+      "name": "MASS",
+      "file": "MASS_7.3-65.tgz",
+      "generic": "MASS.tgz"
+    }
+  ]
+}
