@@ -45,8 +45,16 @@ export function detectLocaleFormat(rawText) {
   }
 
   let delimiter = ",";
-  if (tabCount > 0 && tabCount >= semiCount && tabCount >= commaCount) {
-    delimiter = "\t";
+  if (tabCount > 0 && (tabCount >= semiCount || semiCount === 0)) {
+    const commasBetweenDigits = (text.match(/\d,\d/g) || []).length;
+    const commasOutsideDigits = commaCount - commasBetweenDigits;
+    if (tabCount >= commaCount || tabCount >= commasOutsideDigits || (rawLines.length > 0 && rawLines[0].includes("\t"))) {
+      delimiter = "\t";
+    } else if (semiCount > 0 && semiCount >= commaCount) {
+      delimiter = ";";
+    } else {
+      delimiter = ",";
+    }
   } else if (semiCount > 0 && semiCount >= commaCount) {
     delimiter = ";";
   } else {
